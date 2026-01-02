@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShopReview - Find & Review Great Shops</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <h1>🏪 ShopReview</h1>
+      <p class="tagline">Discover and review the best shops in your area</p>
+    </header>
+
+    <!-- Search Section -->
+    <section class="search-section">
+      <div class="search-box">
+        <input 
+          type="text" 
+          id="searchInput" 
+          class="search-input" 
+          placeholder="Search shops by name..."
+          onkeyup="handleSearch()"
+        >
+        <button class="search-btn" onclick="loadShops()">
+          🔄 Reset
+        </button>
+      </div>
+    </section>
+
+    <!-- Loading Indicator -->
+    <div id="loading" class="loading" style="display: none;">
+      <p>Loading shops...</p>
+    </div>
+
+    <!-- Error Message -->
+    <div id="errorMsg" class="error-msg"></div>
+
+    <!-- Shops Grid -->
+    <section class="shops-section">
+      <div id="shopsList" class="shops-grid">
+        <!-- Shops will be loaded here -->
+      </div>
+    </section>
+
+    <!-- Review Modal -->
+    <div id="reviewModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeReviewModal()">&times;</span>
+        <h2>Add Review</h2>
+        <form id="reviewForm" onsubmit="submitReview(event)">
+          <input type="hidden" id="currentShopId">
+          
+          <div class="form-group">
+            <label for="reviewerName">Your Name:</label>
+            <input type="text" id="reviewerName" required>
+          </div>
+
+          <div class="form-group">
+            <label for="rating">Rating:</label>
+            <select id="rating" required>
+              <option value="">Select a rating</option>
+              <option value="1">1 ⭐ - Poor</option>
+              <option value="2">2 ⭐ - Fair</option>
+              <option value="3">3 ⭐ - Good</option>
+              <option value="4">4 ⭐ - Very Good</option>
+              <option value="5">5 ⭐ - Excellent</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="comment">Comment:</label>
+            <textarea id="comment" rows="4" required></textarea>
+          </div>
+
+          <button type="submit" class="submit-btn">Submit Review</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Shop Details Modal -->
+    <div id="detailsModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeDetailsModal()">&times;</span>
+        <div id="shopDetails"></div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>&copy; 2024 ShopReview. All rights reserved.</p>
+    </footer>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

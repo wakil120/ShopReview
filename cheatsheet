@@ -1,0 +1,14 @@
+# Terminal 1: Start Database
+mongod
+
+# Terminal 2: Start Backend
+cd c:\Users\HPP\Downloads\ShopReview\backend
+npm start
+
+# Terminal 3: Start Website
+cd c:\Users\HPP\Downloads\ShopReview\website
+python -m http.server 8000
+
+# Then visit:
+# http://localhost:8000 (Website)
+# http://localhost:3000/api/shops (API)

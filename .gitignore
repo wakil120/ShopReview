@@ -1,0 +1,95 @@
+# ============================================
+# Backend
+# ============================================
+backend/node_modules/
+backend/.env
+backend/.env.local
+backend/.env.*.local
+backend/npm-debug.log*
+backend/yarn-debug.log*
+backend/yarn-error.log*
+
+# ============================================
+# Flutter
+# ============================================
+flutter_app/.dart_tool/
+flutter_app/.flutter-plugins
+flutter_app/.flutter-plugins-dependencies
+flutter_app/.packages
+flutter_app/build/
+flutter_app/*.iml
+flutter_app/*.lock
+flutter_app/.gradle/
+flutter_app/.idea/
+flutter_app/local.properties
+
+# ============================================
+# IDE
+# ============================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.project
+.classpath
+.c9/
+.history/
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_esm/
+.rts2_cache_umd/
+
+# ============================================
+# OS
+# ============================================
+Thumbs.db
+Desktop.ini
+.AppleDouble
+.LSOverride
+
+# ============================================
+# Logs
+# ============================================
+# Node
+node_modules/
+npm-debug.log*
+.env
+
+# Build outputs
+build/
+dist/
+coverage/
+
+# Flutter / Dart
+**/build/
+.dart_tool/
+.packages
+pubspec.lock
+flutter_app/.flutter-plugins
+flutter_app/.flutter-plugins-dependencies
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# Logs
+*.log
+
+# Generated files
+*.lock
+
+logs/
+
+# ============================================
+# Misc
+# ============================================
+.cache/
+dist/
+out/
