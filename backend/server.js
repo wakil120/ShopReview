@@ -60,54 +60,55 @@ app.use((err, req, res, next) => {
 });
 
 // Initialize sample data
+// Initialize sample data
 async function initializeData() {
   const Shop = require('./models/shop');
   const Review = require('./models/Review');
 
   try {
-    const shopCount = await Shop.countDocuments();
-    
-    if (shopCount === 0) {
-      console.log('Initializing sample data...');
-      
-      const sampleShops = [
-        { name: 'Pizza Paradise', category: 'Italian', location: 'Downtown' },
-        { name: 'Sushi Master', category: 'Japanese', location: 'Mall Center' },
-        { name: 'Burger King', category: 'Fast Food', location: 'Main Street' },
-        { name: 'Thai Heaven', category: 'Thai', location: 'Midtown' },
-        { name: 'Coffee Corner', category: 'Café', location: 'Business District' }
-      ];
+    // Define the sample shops with corrected categories
+    const sampleShops = [
+      { name: 'Pizza Paradise', category: 'restaurant', location: 'Downtown' },
+      { name: 'Sushi Master', category: 'restaurant', location: 'Mall Center' },
+      { name: 'Burger King', category: 'restaurant', location: 'Main Street' },
+      { name: 'Thai Heaven', category: 'restaurant', location: 'Midtown' },
+      { name: 'Coffee Corner', category: 'restaurant', location: 'Business District' }
+    ];
 
-      const shops = await Shop.insertMany(sampleShops);
+    // Remove only shops with the same names as sampleShops (old sample shops)
+    await Shop.deleteMany({ name: { $in: sampleShops.map(s => s.name) } });
 
-      // Add sample reviews
-      const sampleReviews = [
-        { shopId: shops[0]._id, rating: 5, comment: 'Best pizza in town!', reviewer: 'John Doe' },
-        { shopId: shops[0]._id, rating: 4, comment: 'Great taste, bit pricey', reviewer: 'Jane Smith' },
-        { shopId: shops[1]._id, rating: 5, comment: 'Fresh and delicious', reviewer: 'Mike Johnson' },
-        { shopId: shops[2]._id, rating: 3, comment: 'Average quality', reviewer: 'Sarah Lee' },
-        { shopId: shops[3]._id, rating: 4, comment: 'Authentic Thai food', reviewer: 'Tom Wilson' },
-      ];
+    // Insert updated sample shops
+    const shops = await Shop.insertMany(sampleShops);
 
-      await Review.insertMany(sampleReviews);
+    // Add sample reviews
+    const sampleReviews = [
+      { shopId: shops[0]._id, rating: 5, comment: 'Best pizza in town!', reviewer: 'John Doe' },
+      { shopId: shops[0]._id, rating: 4, comment: 'Great taste, bit pricey', reviewer: 'Jane Smith' },
+      { shopId: shops[1]._id, rating: 5, comment: 'Fresh and delicious', reviewer: 'Mike Johnson' },
+      { shopId: shops[2]._id, rating: 3, comment: 'Average quality', reviewer: 'Sarah Lee' },
+      { shopId: shops[3]._id, rating: 4, comment: 'Authentic Thai food', reviewer: 'Tom Wilson' },
+    ];
 
-      // Update shop average ratings
-      for (const shop of shops) {
-        const reviews = await Review.find({ shopId: shop._id });
-        if (reviews.length > 0) {
-          const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
-          shop.averageRating = parseFloat(avgRating.toFixed(2));
-          shop.reviewCount = reviews.length;
-          await shop.save();
-        }
+    await Review.insertMany(sampleReviews);
+
+    // Update shop average ratings
+    for (const shop of shops) {
+      const reviews = await Review.find({ shopId: shop._id });
+      if (reviews.length > 0) {
+        const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
+        shop.averageRating = parseFloat(avgRating.toFixed(2));
+        shop.reviewCount = reviews.length;
+        await shop.save();
       }
-
-      console.log('✓ Sample data initialized');
     }
+
+    console.log('✓ Sample shops updated and reviews initialized');
   } catch (error) {
-    console.error('Error initializing data:', error);
+    console.error('Error initializing sample shops:', error);
   }
 }
+
 
 // Start server
 app.listen(PORT, () => {
