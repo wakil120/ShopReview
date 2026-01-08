@@ -3,15 +3,18 @@
   "name": "Shop Comparator",
   "version": "1.0.0",
   "description": "Compare shops and see their ratings, reviews, and detailed information",
+
   "permissions": [
-    "activeTab"
+    "storage"
   ],
+
   "host_permissions": [
-    "http://localhost:3000/*"
+    "http://localhost:5000/*",
+    "http://127.0.0.1:5000/*"
   ],
+
   "action": {
     "default_popup": "popup.html",
     "default_title": "Shop Comparator"
   }
 }
-

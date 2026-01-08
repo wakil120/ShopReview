@@ -1,12 +1,18 @@
 // ============================================
 // CONSTANTS
 // ============================================
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = 'http://localhost:5000/api';
 
 // ============================================
-// EVENT LISTENERS
+// INITIALIZATION
 // ============================================
-document.getElementById('compareForm').addEventListener('submit', handleCompare);
+document.addEventListener('DOMContentLoaded', function() {
+  // Setup form submission
+  document.getElementById('compareForm').addEventListener('submit', handleCompare);
+  
+  // Setup clear button
+  document.querySelector('.btn-clear').addEventListener('click', clearForm);
+});
 
 // ============================================
 // MAIN FUNCTIONS
@@ -21,12 +27,10 @@ async function handleCompare(event) {
   const shop1Name = document.getElementById('shop1').value.trim();
   const shop2Name = document.getElementById('shop2').value.trim();
 
-  // Validation
   if (!shop1Name || !shop2Name) {
     showError('Please enter both shop names');
     return;
   }
-
   if (shop1Name.toLowerCase() === shop2Name.toLowerCase()) {
     showError('Please select two different shops');
     return;
@@ -36,22 +40,24 @@ async function handleCompare(event) {
   showLoading();
 
   try {
+    // ✅ FULL ABSOLUTE URL WITH CORRECT PORT 5000
     const response = await fetch(
-      `${API_BASE_URL}/shops/compare-by-name?shop1=${encodeURIComponent(shop1Name)}&shop2=${encodeURIComponent(shop2Name)}`
+      `http://localhost:5000/api/shops/compare-by-name?shop1=${encodeURIComponent(shop1Name)}&shop2=${encodeURIComponent(shop2Name)}`
     );
 
     if (!response.ok) {
       if (response.status === 404) {
-        throw new Error('One or both shops not found. Check the spelling!');
+        throw new Error('One or both shops not found. Check spelling!');
       }
-      throw new Error(`HTTP Error: ${response.status}`);
+      throw new Error(`Server error: ${response.status}`);
     }
 
     const data = await response.json();
     displayComparison(data);
+
   } catch (error) {
-    showError(error.message || 'Failed to compare shops. Make sure the backend is running.');
-    console.error('Error:', error);
+    showError(error.message || 'Failed to connect to backend. Is it running on port 5000?');
+    console.error('Fetch error:', error);
   } finally {
     hideLoading();
   }

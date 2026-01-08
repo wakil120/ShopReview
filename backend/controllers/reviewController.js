@@ -1,5 +1,5 @@
 const Review = require('../models/Review');
-const Shop = require('../models/Shop');
+const Shop = require('../models/shop');
 
 // Get all reviews for a shop
 exports.getReviewsByShop = async (req, res) => {

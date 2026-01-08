@@ -4,10 +4,20 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000; // Changed to 3000 for consistency
 
-// Middleware
-app.use(cors());
+// Middleware - UPDATED CORS
+app.use(cors({
+  origin: '*',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+
+// Handle preflight requests
+app.options('*', cors());
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -21,7 +31,8 @@ mongoose.connect('mongodb://localhost:27017/shopreview', {
   initializeData();
 })
 .catch(err => {
-  console.error('✗ MongoDB connection error:', err);
+  console.error('✗ MongoDB connection error:', err.message);
+  console.log('Make sure MongoDB is running: mongod');
   process.exit(1);
 });
 
@@ -34,7 +45,7 @@ app.use('/api/reviews', reviewRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'Server is running' });
+  res.json({ status: 'Server is running', port: PORT });
 });
 
 // 404 handler
@@ -50,7 +61,7 @@ app.use((err, req, res, next) => {
 
 // Initialize sample data
 async function initializeData() {
-  const Shop = require('./models/Shop');
+  const Shop = require('./models/shop');
   const Review = require('./models/Review');
 
   try {
