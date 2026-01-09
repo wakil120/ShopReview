@@ -707,3 +707,113 @@ body {
   background: linear-gradient(135deg, #667eea, #764ba2);
   color: white;
 }
+
+
+/* ============================================
+   RESET FILTERS BUTTON STYLES
+   ============================================ */
+.reset-btn {
+  padding: 12px 20px;
+  background: #f3f4f6;
+  color: #6b7280;
+  border: 2px solid #e5e7eb;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95em;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.reset-btn:hover {
+  background: #e5e7eb;
+  color: #374151;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.reset-btn:active {
+  transform: translateY(0);
+}
+
+/* ============================================
+   UPDATE SEARCH BOX LAYOUT
+   ============================================ */
+.search-box {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  max-width: 600px; /* Slightly wider to accommodate reset button */
+}
+
+.search-input {
+  flex: 1;
+  padding: 12px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 1em;
+  transition: border-color 0.3s;
+  min-width: 200px;
+}
+
+/* ============================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================ */
+@media (max-width: 768px) {
+  .search-box {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .search-input,
+  .reset-btn {
+    width: 100%;
+  }
+  
+  .reset-btn {
+    order: 3; /* Place reset button after search input */
+  }
+}
+
+/* Alternative: If you want a more subtle reset button */
+.reset-btn-alt {
+  padding: 12px 20px;
+  background: transparent;
+  color: #6b7280;
+  border: 2px dashed #d1d5db;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95em;
+  transition: all 0.2s ease;
+}
+
+.reset-btn-alt:hover {
+  background: #f9fafb;
+  color: #dc2626;
+  border-color: #dc2626;
+}
+
+/* Or if you want it to match your gradient theme */
+.reset-btn-gradient {
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #f59e0b 0%, #dc2626 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95em;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.reset-btn-gradient:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
+}

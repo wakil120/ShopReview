@@ -452,11 +452,12 @@ window.onclick = function(event) {
   }
 };
 
+
 // ============================================
-// Filtering Categories & Locations (FIXED)
+// Filtering Categories & Locations - COMPLETE FIX
 // ============================================
 
-// 🔹 Global filter state (IMPORTANT)
+// 🔹 Global filter state
 let selectedCategory = "";
 let selectedLocation = "";
 
@@ -468,102 +469,55 @@ async function loadFilters() {
     const resp = await fetch(`${API_BASE_URL}/shops`);
     const shops = await resp.json();
 
+    // Get unique categories (normalized to lowercase)
     const categories = [
       ...new Set(
         shops.map(s => s.category.trim().toLowerCase())
       )
     ];
 
+    // Get unique locations (normalized to lowercase)
     const locations = [
       ...new Set(
         shops.map(s => s.location.trim().toLowerCase())
       )
     ];
 
-
-    renderFilters('categoryFilters', categories, filterByCategory);
-    renderFilters('locationFilters', locations, filterByLocation);
+    renderFilters('categoryFilters', categories, (category) => {
+      selectedCategory = category;
+      fetchFilteredShops();
+    });
+    
+    renderFilters('locationFilters', locations, (location) => {
+      selectedLocation = location;
+      fetchFilteredShops();
+    });
   } catch (err) {
     console.error('Failed to load filters', err);
   }
 }
 
 // ============================================
-// Render filter buttons
-// ============================================
-function renderFilters(containerId, items, handler) {
-  const container = document.getElementById(containerId);
-  container.innerHTML = '';
-
-  // 🔹 ALL button
-  const allBtn = document.createElement('button');
-  allBtn.textContent = 'All';
-  allBtn.className = 'filter-btn active';
-
-  allBtn.onclick = () => {
-    setActiveFilter(container, allBtn);
-
-    if (containerId === 'categoryFilters') {
-      selectedCategory = "";
-    }
-
-    if (containerId === 'locationFilters') {
-      selectedLocation = "";
-    }
-
-    fetchFilteredShops();
-  };
-
-  container.appendChild(allBtn);
-
-  // 🔹 Dynamic buttons
-  items.forEach(item => {
-    const btn = document.createElement('button');
-    btn.textContent = item.charAt(0).toUpperCase() + item.slice(1);
-    btn.className = 'filter-btn';
-
-    btn.onclick = () => {
-      setActiveFilter(container, btn);
-      handler(item);
-    };
-
-    container.appendChild(btn);
-  });
-}
-
-// ============================================
-// Filter handlers
-// ============================================
-function filterByCategory(category) {
-  selectedCategory = category;
-  fetchFilteredShops();  // ← Calls with both filters
-}
-
-function filterByLocation(location) {
-  selectedLocation = location;
-  fetchFilteredShops();  // ← Calls with both filters
-}
-
-// ============================================
-// Fetch shops using COMBINED filters (Category + Location)
+// Fetch shops using BOTH filters combined
 // ============================================
 async function fetchFilteredShops() {
   showLoading();
   clearError();
 
   let url = `${API_BASE_URL}/shops`;
-
-  // Build query string only if filters are active
+  
+  // Build query with BOTH filters
   const params = new URLSearchParams();
-
+  
   if (selectedCategory) {
     params.append('category', selectedCategory);
   }
-
+  
   if (selectedLocation) {
     params.append('location', selectedLocation);
   }
-
+  
+  // Always add the query string if we have any filters
   if (params.toString()) {
     url += `?${params.toString()}`;
   }
@@ -571,10 +525,10 @@ async function fetchFilteredShops() {
   try {
     const resp = await fetch(url);
     if (!resp.ok) throw new Error("Failed to fetch shops");
-
+    
     const shops = await resp.json();
     displayShops(shops);
-
+    
   } catch (err) {
     console.error(err);
     showError('Failed to load filtered shops');
@@ -584,30 +538,97 @@ async function fetchFilteredShops() {
 }
 
 // ============================================
-// Active button UI helper
+// Render filter buttons with proper reset
 // ============================================
-function setActiveFilter(container, activeBtn) {
-  [...container.children].forEach(btn => btn.classList.remove('active'));
-  activeBtn.classList.add('active');
+function renderFilters(containerId, items, onClickHandler) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+
+  // 🔹 ALL button
+  const allBtn = document.createElement('button');
+  allBtn.textContent = 'All';
+  allBtn.className = 'filter-btn active'; // Default active
+
+  allBtn.onclick = () => {
+    // Remove active class from all buttons
+    [...container.children].forEach(btn => btn.classList.remove('active'));
+    // Add active to this button
+    allBtn.classList.add('active');
+    
+    // Clear the appropriate filter
+    if (containerId === 'categoryFilters') {
+      selectedCategory = "";
+    } else if (containerId === 'locationFilters') {
+      selectedLocation = "";
+    }
+    
+    // Fetch with updated filters
+    fetchFilteredShops();
+  };
+
+  container.appendChild(allBtn);
+
+  // 🔹 Category/Location buttons
+  items.forEach(item => {
+    const btn = document.createElement('button');
+    // Display with first letter capitalized
+    btn.textContent = item.charAt(0).toUpperCase() + item.slice(1);
+    btn.className = 'filter-btn';
+
+    btn.onclick = () => {
+      // Remove active class from all buttons in this container
+      [...container.children].forEach(btn => btn.classList.remove('active'));
+      // Add active to clicked button
+      btn.classList.add('active');
+      
+      // Call the handler with the filter value
+      onClickHandler(item);
+    };
+
+    container.appendChild(btn);
+  });
+}
+// ============================================
+// RESET FILTERS BUTTON (Styled better)
+// ============================================
+function addResetFiltersButton() {
+  const searchBox = document.querySelector('.search-box');
+  
+  const resetBtn = document.createElement('button');
+  resetBtn.textContent = 'Reset Filters';
+  resetBtn.className = 'reset-btn';
+  
+  resetBtn.onclick = () => {
+    // Reset all filters
+    selectedCategory = "";
+    selectedLocation = "";
+    
+    // Reset UI buttons
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.classList.remove('active');
+    });
+    
+    // Activate "All" buttons
+    document.querySelectorAll('#categoryFilters .filter-btn:first-child, #locationFilters .filter-btn:first-child')
+      .forEach(btn => btn.classList.add('active'));
+    
+    // Clear search input
+    document.getElementById('searchInput').value = '';
+    
+    // Reload all shops
+    loadShops();
+  };
+  
+  searchBox.appendChild(resetBtn);
 }
 
-
-async function filterByLocation(location) {
-  showLoading();
-  try {
-    const resp = await fetch(`${API_BASE_URL}/shops?location=${encodeURIComponent(location)}`);
-    const shops = await resp.json();
-    displayShops(shops);
-  } catch {
-    showError('Failed to filter by location');
-  } finally {
-    hideLoading();
-  }
-}
-
-//Active button UI helper
-function setActiveFilter(container, activeBtn) {
-  [...container.children].forEach(btn => btn.classList.remove('active'));
-  activeBtn.classList.add('active');
-}
-
+// ============================================
+// Initialize with reset button
+// ============================================
+document.addEventListener('DOMContentLoaded', () => {
+  loadShops();
+  setupEventListeners();
+  setupAddShopButton();
+  loadFilters();
+  addResetFiltersButton(); // Add this line
+});
