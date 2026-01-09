@@ -1,14 +1,38 @@
 const Shop = require('../models/shop');
 
-// Get all shops
+// Helper to capitalize first letter and make rest lowercase
+function capitalize(str) {
+  if (!str) return '';
+  const trimmed = str.trim();
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+}
+
+
+// Get all shops - with optional case-insensitive category/location filters
 exports.getAllShops = async (req, res) => {
   try {
-    const shops = await Shop.find().sort({ createdAt: -1 });
+    const { category, location } = req.query;
+
+    let filter = {};
+
+    // Case-insensitive exact match for category
+    if (category) {
+      filter.category = { $regex: new RegExp(`^${category.trim()}$`, 'i') };
+    }
+
+    // Case-insensitive exact match for location
+    if (location) {
+      filter.location = { $regex: new RegExp(`^${location.trim()}$`, 'i') };
+    }
+
+    const shops = await Shop.find(filter).sort({ createdAt: -1 });
     res.json(shops);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Error fetching shops:', error);
+    res.status(500).json({ message: error.message || 'Server error' });
   }
 };
+
 
 // Search shops by name
 // Search shops by name - IMPROVED VERSION
@@ -88,6 +112,7 @@ exports.getShopById = async (req, res) => {
 };
 
 // Create a new shop
+// Create a new shop
 exports.createShop = async (req, res) => {
   const { name, category, location } = req.body;
 
@@ -97,9 +122,9 @@ exports.createShop = async (req, res) => {
 
   try {
     const shop = new Shop({
-      name,
-      category,
-      location
+      name: capitalize(name),         // → "pizza paradise" becomes "Pizza Paradise"
+      category: capitalize(category), // → "italian" becomes "Italian"
+      location: capitalize(location)  // → "downtown" becomes "Downtown"
     });
 
     const savedShop = await shop.save();

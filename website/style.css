@@ -666,3 +666,44 @@ body {
 }
 
 
+/* ===============================
+   FILTERS SECTION
+   =============================== */
+.filters-section {
+  margin-bottom: 40px;
+  display: grid;
+  gap: 25px;
+}
+
+.filter-group h3 {
+  color: white;
+  margin-bottom: 10px;
+  font-size: 1.1em;
+}
+
+.filter-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.filter-btn {
+  padding: 8px 14px;
+  border-radius: 20px;
+  border: none;
+  background: white;
+  color: #333;
+  font-size: 0.85em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+}
+
+.filter-btn:hover {
+  transform: translateY(-2px);
+}
+
+.filter-btn.active {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+}

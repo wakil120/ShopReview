@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadShops();
   setupEventListeners();
   setupAddShopButton();
+  loadFilters(); 
 });
 
 // ============================================
@@ -450,3 +451,163 @@ window.onclick = function(event) {
     closeAddShopModal();
   }
 };
+
+// ============================================
+// Filtering Categories & Locations (FIXED)
+// ============================================
+
+// 🔹 Global filter state (IMPORTANT)
+let selectedCategory = "";
+let selectedLocation = "";
+
+// ============================================
+// Fetch categories & locations
+// ============================================
+async function loadFilters() {
+  try {
+    const resp = await fetch(`${API_BASE_URL}/shops`);
+    const shops = await resp.json();
+
+    const categories = [
+      ...new Set(
+        shops.map(s => s.category.trim().toLowerCase())
+      )
+    ];
+
+    const locations = [
+      ...new Set(
+        shops.map(s => s.location.trim().toLowerCase())
+      )
+    ];
+
+
+    renderFilters('categoryFilters', categories, filterByCategory);
+    renderFilters('locationFilters', locations, filterByLocation);
+  } catch (err) {
+    console.error('Failed to load filters', err);
+  }
+}
+
+// ============================================
+// Render filter buttons
+// ============================================
+function renderFilters(containerId, items, handler) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+
+  // 🔹 ALL button
+  const allBtn = document.createElement('button');
+  allBtn.textContent = 'All';
+  allBtn.className = 'filter-btn active';
+
+  allBtn.onclick = () => {
+    setActiveFilter(container, allBtn);
+
+    if (containerId === 'categoryFilters') {
+      selectedCategory = "";
+    }
+
+    if (containerId === 'locationFilters') {
+      selectedLocation = "";
+    }
+
+    fetchFilteredShops();
+  };
+
+  container.appendChild(allBtn);
+
+  // 🔹 Dynamic buttons
+  items.forEach(item => {
+    const btn = document.createElement('button');
+    btn.textContent = item.charAt(0).toUpperCase() + item.slice(1);
+    btn.className = 'filter-btn';
+
+    btn.onclick = () => {
+      setActiveFilter(container, btn);
+      handler(item);
+    };
+
+    container.appendChild(btn);
+  });
+}
+
+// ============================================
+// Filter handlers
+// ============================================
+function filterByCategory(category) {
+  selectedCategory = category;
+  fetchFilteredShops();  // ← Calls with both filters
+}
+
+function filterByLocation(location) {
+  selectedLocation = location;
+  fetchFilteredShops();  // ← Calls with both filters
+}
+
+// ============================================
+// Fetch shops using COMBINED filters (Category + Location)
+// ============================================
+async function fetchFilteredShops() {
+  showLoading();
+  clearError();
+
+  let url = `${API_BASE_URL}/shops`;
+
+  // Build query string only if filters are active
+  const params = new URLSearchParams();
+
+  if (selectedCategory) {
+    params.append('category', selectedCategory);
+  }
+
+  if (selectedLocation) {
+    params.append('location', selectedLocation);
+  }
+
+  if (params.toString()) {
+    url += `?${params.toString()}`;
+  }
+
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error("Failed to fetch shops");
+
+    const shops = await resp.json();
+    displayShops(shops);
+
+  } catch (err) {
+    console.error(err);
+    showError('Failed to load filtered shops');
+  } finally {
+    hideLoading();
+  }
+}
+
+// ============================================
+// Active button UI helper
+// ============================================
+function setActiveFilter(container, activeBtn) {
+  [...container.children].forEach(btn => btn.classList.remove('active'));
+  activeBtn.classList.add('active');
+}
+
+
+async function filterByLocation(location) {
+  showLoading();
+  try {
+    const resp = await fetch(`${API_BASE_URL}/shops?location=${encodeURIComponent(location)}`);
+    const shops = await resp.json();
+    displayShops(shops);
+  } catch {
+    showError('Failed to filter by location');
+  } finally {
+    hideLoading();
+  }
+}
+
+//Active button UI helper
+function setActiveFilter(container, activeBtn) {
+  [...container.children].forEach(btn => btn.classList.remove('active'));
+  activeBtn.classList.add('active');
+}
+
