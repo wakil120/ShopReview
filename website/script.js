@@ -4,6 +4,21 @@
 const API_BASE_URL = 'http://localhost:5000/api';
 
 // ============================================
+// DEBOUNCE HELPER (for better performance)
+// ============================================
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
+// ============================================
 // INITIALIZATION
 // ============================================
 document.addEventListener('DOMContentLoaded', () => {
@@ -18,6 +33,11 @@ document.addEventListener('DOMContentLoaded', () => {
 function setupEventListeners() {
   const searchInput = document.getElementById('searchInput');
   if (searchInput) {
+    // Add real-time search with debouncing (type-as-you-search)
+    const debouncedSearch = debounce(handleSearch, 300);
+    searchInput.addEventListener('input', debouncedSearch);
+    
+    // Keep Enter key functionality (instant search)
     searchInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') handleSearch();
     });
@@ -61,16 +81,24 @@ async function loadShops() {
 
 async function handleSearch() {
   const searchTerm = document.getElementById('searchInput').value.trim();
+  
   if (!searchTerm) {
     loadShops();
     return;
   }
+  
   showLoading();
   clearError();
+  
   try {
     const response = await fetch(`${API_BASE_URL}/shops/search?name=${encodeURIComponent(searchTerm)}`);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    
     const shops = await response.json();
+    
     if (shops.length === 0) {
       showError(`No shops found matching "${searchTerm}"`);
       document.getElementById('shopsList').innerHTML = '';
@@ -88,17 +116,29 @@ async function handleSearch() {
 function displayShops(shops) {
   const shopsList = document.getElementById('shopsList');
   shopsList.innerHTML = '';
+  
   if (shops.length === 0) {
-    shopsList.innerHTML = `<div class="empty-state" style="grid-column:1/-1;"><h2>No shops found</h2><p>Try another search or reset.</p></div>`;
+    shopsList.innerHTML = `
+      <div class="empty-state" style="grid-column: 1 / -1;">
+        <h2>No shops found</h2>
+        <p>Try another search or reset.</p>
+      </div>
+    `;
     return;
   }
-  shops.forEach(shop => shopsList.appendChild(createShopCard(shop)));
+  
+  shops.forEach(shop => {
+    const shopCard = createShopCard(shop);
+    shopsList.appendChild(shopCard);
+  });
 }
 
 function createShopCard(shop) {
   const card = document.createElement('div');
   card.className = 'shop-card';
+  
   const stars = generateStars(shop.averageRating);
+  
   card.innerHTML = `
     <div class="shop-card-header">
       <h3 class="shop-name">${escapeHtml(shop.name)}</h3>
@@ -115,10 +155,15 @@ function createShopCard(shop) {
       </div>
     </div>
     <div class="shop-card-footer">
-      <button class="btn btn-details" onclick="showShopDetails('${shop._id}')">👁️ Details</button>
-      <button class="btn btn-review" onclick="openReviewModal('${shop._id}', '${escapeHtml(shop.name)}')">✍️ Review</button>
+      <button class="btn btn-details" onclick="showShopDetails('${shop._id}')">
+        👁️ Details
+      </button>
+      <button class="btn btn-review" onclick="openReviewModal('${shop._id}', '${escapeHtml(shop.name)}')">
+        ✍️ Review
+      </button>
     </div>
   `;
+  
   return card;
 }
 
@@ -126,7 +171,11 @@ function generateStars(rating) {
   const fullStars = Math.floor(rating);
   const hasHalfStar = rating % 1 >= 0.5;
   let stars = '⭐'.repeat(fullStars);
-  if (hasHalfStar && fullStars < 5) stars += '✨';
+  
+  if (hasHalfStar && fullStars < 5) {
+    stars += '✨';
+  }
+  
   return stars;
 }
 
@@ -135,50 +184,61 @@ function generateStars(rating) {
 // ============================================
 async function showShopDetails(shopId) {
   try {
+    // Fetch shop details
     const shopResp = await fetch(`${API_BASE_URL}/shops/${shopId}`);
     if (!shopResp.ok) throw new Error('Failed to fetch shop details');
+    
     const shop = await shopResp.json();
 
+    // Fetch reviews
     const reviewsResp = await fetch(`${API_BASE_URL}/reviews/${shopId}`);
     const reviews = reviewsResp.ok ? await reviewsResp.json() : [];
 
+    // Display modal
     const detailsDiv = document.getElementById('shopDetails');
     const stars = generateStars(shop.averageRating);
-    let reviewsHTML = reviews.length ? `
-      <div class="reviews-container">
-        <h3 style="margin-top:25px;margin-bottom:15px;">Reviews</h3>
-        ${reviews.map(r => `
-          <div class="review-item">
-            <div class="review-header">
-              <span class="review-author">${escapeHtml(r.reviewer)}</span>
-              <span class="review-date">${formatDate(r.date)}</span>
+
+    let reviewsHTML = '';
+    if (reviews.length > 0) {
+      reviewsHTML = `
+        <div class="reviews-container">
+          <h3 style="margin-top: 25px; margin-bottom: 15px;">Reviews</h3>
+          ${reviews.map(review => `
+            <div class="review-item">
+              <div class="review-header">
+                <span class="review-author">${escapeHtml(review.reviewer)}</span>
+                <span class="review-date">${formatDate(review.date)}</span>
+              </div>
+              <div class="review-rating">${'⭐'.repeat(review.rating)} (${review.rating}/5)</div>
+              <p class="review-comment">${escapeHtml(review.comment)}</p>
             </div>
-            <div class="review-rating">${'⭐'.repeat(r.rating)} (${r.rating}/5)</div>
-            <p class="review-comment">${escapeHtml(r.comment)}</p>
-          </div>
-        `).join('')}
-      </div>
-    ` : `<p style="color:#999;margin-top:20px;">No reviews yet. Be the first!</p>`;
+          `).join('')}
+        </div>
+      `;
+    } else {
+      reviewsHTML = '<p style="color: #999; margin-top: 20px;">No reviews yet. Be the first to review!</p>';
+    }
 
     detailsDiv.innerHTML = `
       <div>
-        <h2 style="color:#667eea;margin-bottom:20px;">${escapeHtml(shop.name)}</h2>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+        <h2 style="color: #667eea; margin-bottom: 20px;">${escapeHtml(shop.name)}</h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
           <div>
             <p><strong>Category:</strong> ${escapeHtml(shop.category)}</p>
             <p><strong>Location:</strong> ${escapeHtml(shop.location)}</p>
           </div>
           <div>
-            <p><strong>Average Rating:</strong> <span style="font-size:1.3em;color:#f59e0b;">${shop.averageRating.toFixed(1)} ${stars}</span></p>
+            <p><strong>Average Rating:</strong> <span style="font-size: 1.3em; color: #f59e0b;">${shop.averageRating.toFixed(1)} ${stars}</span></p>
             <p><strong>Total Reviews:</strong> ${shop.reviewCount}</p>
           </div>
         </div>
         ${reviewsHTML}
       </div>
     `;
+
     document.getElementById('detailsModal').classList.add('show');
   } catch (err) {
-    console.error(err);
+    console.error('Error fetching shop details:', err);
     showError('Failed to load shop details.');
   }
 }
@@ -194,6 +254,8 @@ function openReviewModal(shopId, shopName) {
   document.getElementById('currentShopId').value = shopId;
   const modal = document.getElementById('reviewModal');
   modal.classList.add('show');
+  
+  // Reset form
   document.getElementById('reviewForm').reset();
 }
 
@@ -204,32 +266,46 @@ function closeReviewModal() {
 
 async function submitReview(e) {
   e.preventDefault();
+
   const shopId = document.getElementById('currentShopId').value;
   const reviewer = document.getElementById('reviewerName').value.trim();
   const rating = parseInt(document.getElementById('rating').value);
   const comment = document.getElementById('comment').value.trim();
 
   if (!shopId || !reviewer || !rating || !comment) {
-    showError('Please fill all fields.');
+    showError('Please fill in all fields.');
     return;
   }
 
   try {
-    const resp = await fetch(`${API_BASE_URL}/reviews`, {
+    const response = await fetch(`${API_BASE_URL}/reviews`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ shopId, reviewer, rating, comment })
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        shopId,
+        rating,
+        comment,
+        reviewer
+      })
     });
-    if (!resp.ok) throw new Error('Failed to submit review');
+
+    if (!response.ok) {
+      throw new Error('Failed to submit review');
+    }
+
     closeReviewModal();
-    showError('✓ Review submitted!');
+    showError('✓ Review submitted successfully!');
+    
+    // Reload shops to update ratings
     setTimeout(() => {
       clearError();
       loadShops();
     }, 1500);
   } catch (err) {
-    console.error(err);
-    showError('Failed to submit review.');
+    console.error('Error submitting review:', err);
+    showError('Failed to submit review. Please try again.');
   }
 }
 
@@ -248,6 +324,7 @@ function closeAddShopModal() {
 
 async function submitAddShop(e) {
   e.preventDefault();
+  
   const name = document.getElementById('newShopName').value.trim();
   const category = document.getElementById('newShopCategory').value.trim();
   const location = document.getElementById('newShopLocation').value.trim();
@@ -265,44 +342,111 @@ async function submitAddShop(e) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, category, location })
     });
+    
     const data = await resp.json();
-    if (!resp.ok) throw new Error(data.message || 'Failed to add shop');
-    msg.textContent = '✓ Shop added!';
+    
+    if (!resp.ok) {
+      throw new Error(data.message || 'Failed to add shop');
+    }
+    
+    msg.textContent = '✓ Shop added successfully!';
     msg.style.color = 'green';
-    closeAddShopModal();
-    loadShops();
+    
+    // Close modal and reload shops after a delay
+    setTimeout(() => {
+      closeAddShopModal();
+      loadShops();
+    }, 1500);
+    
   } catch (err) {
-    console.error(err);
-    msg.textContent = 'Cannot connect to server';
+    console.error('Error adding shop:', err);
+    msg.textContent = 'Failed to add shop. Please try again.';
     msg.style.color = 'red';
   }
 }
 
 // ============================================
-// UTILITY
+// UTILITY FUNCTIONS
 // ============================================
-function showLoading() { document.getElementById('loading').style.display = 'block'; }
-function hideLoading() { document.getElementById('loading').style.display = 'none'; }
-function showError(msg) { const e = document.getElementById('errorMsg'); e.textContent = msg; e.classList.add('show'); }
-function clearError() { const e = document.getElementById('errorMsg'); e.textContent = ''; e.classList.remove('show'); }
-function escapeHtml(text) { const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
+
+/**
+ * Show loading indicator
+ */
+function showLoading() {
+  document.getElementById('loading').style.display = 'block';
+}
+
+/**
+ * Hide loading indicator
+ */
+function hideLoading() {
+  document.getElementById('loading').style.display = 'none';
+}
+
+/**
+ * Show error message
+ */
+function showError(message) {
+  const errorDiv = document.getElementById('errorMsg');
+  errorDiv.textContent = message;
+  errorDiv.classList.add('show');
+}
+
+/**
+ * Clear error message
+ */
+function clearError() {
+  const errorDiv = document.getElementById('errorMsg');
+  errorDiv.textContent = '';
+  errorDiv.classList.remove('show');
+}
+
+/**
+ * Escape HTML special characters
+ */
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+/**
+ * Format date
+ */
 function formatDate(dateString) {
-  const date = new Date(dateString), today = new Date(), yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate()-1);
-  if(date.toDateString()===today.toDateString()) return 'Today';
-  if(date.toDateString()===yesterday.toDateString()) return 'Yesterday';
-  return date.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});
+  const date = new Date(dateString);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (date.toDateString() === today.toDateString()) {
+    return 'Today';
+  } else if (date.toDateString() === yesterday.toDateString()) {
+    return 'Yesterday';
+  } else {
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  }
 }
 
 // ============================================
-// MODAL OUTSIDE CLICK
+// MODAL CLOSE ON OUTSIDE CLICK
 // ============================================
 window.onclick = function(event) {
   const reviewModal = document.getElementById('reviewModal');
   const detailsModal = document.getElementById('detailsModal');
   const addShopModal = document.getElementById('addShopModal');
 
-  if(event.target === reviewModal) closeReviewModal();
-  if(event.target === detailsModal) closeDetailsModal();
-  if(event.target === addShopModal) closeAddShopModal();
+  if (event.target === reviewModal) {
+    closeReviewModal();
+  }
+  if (event.target === detailsModal) {
+    closeDetailsModal();
+  }
+  if (event.target === addShopModal) {
+    closeAddShopModal();
+  }
 };
