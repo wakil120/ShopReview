@@ -182,6 +182,7 @@ body {
 .shop-card-body {
   padding: 20px;
   flex-grow: 1;
+  cursor: pointer;
 }
 
 .rating-section {
@@ -244,6 +245,192 @@ body {
 
 .btn-review:hover {
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+/* ============================================
+   CLICKABLE SHOP CARD STYLES (ADD THIS SECTION)
+   ============================================ */
+
+/* Make the card content area clickable */
+.shop-card-content {
+  cursor: pointer;
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+/* Prevent text selection when clicking */
+.shop-card-content {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Make the entire card look clickable */
+.shop-card {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Add hover effect to indicate clickability */
+.shop-card-content:hover .shop-card-header {
+  background: linear-gradient(135deg, #5a6fd8 0%, #6a3c9a 100%);
+}
+
+/* Add a subtle pointer indicator */
+.shop-card::after {
+  content: '📝 Click to view reviews';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: rgba(102, 126, 234, 0.9);
+  color: white;
+  text-align: center;
+  padding: 8px;
+  font-size: 0.8em;
+  font-weight: 600;
+  transform: translateY(-100%);
+  transition: transform 0.3s ease;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.shop-card:hover::after {
+  transform: translateY(0);
+}
+
+/* Ensure buttons stay above the overlay */
+.shop-card-footer {
+  position: relative;
+  z-index: 2;
+  background: white;
+}
+
+/* Add click feedback */
+.shop-card-content:active {
+  transform: scale(0.99);
+  transition: transform 0.1s;
+}
+
+/* Make buttons stop propagation */
+.shop-card-footer .btn {
+  position: relative;
+  z-index: 3;
+}
+
+/* Optional: Add a subtle arrow indicator in header */
+.shop-card-header {
+  position: relative;
+}
+
+.shop-card-header::after {
+  content: '→';
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 1.2em;
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.shop-card:hover .shop-card-header::after {
+  opacity: 1;
+  transform: translateX(5px);
+}/* ============================================
+   CLICKABLE SHOP CARD STYLES (ADD THIS SECTION)
+   ============================================ */
+
+/* Make the card content area clickable */
+.shop-card-content {
+  cursor: pointer;
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+/* Prevent text selection when clicking */
+.shop-card-content {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Make the entire card look clickable */
+.shop-card {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Add hover effect to indicate clickability */
+.shop-card-content:hover .shop-card-header {
+  background: linear-gradient(135deg, #5a6fd8 0%, #6a3c9a 100%);
+}
+
+/* Add a subtle pointer indicator */
+.shop-card::after {
+  content: '📝 Click to view reviews';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: rgba(102, 126, 234, 0.9);
+  color: white;
+  text-align: center;
+  padding: 8px;
+  font-size: 0.8em;
+  font-weight: 600;
+  transform: translateY(-100%);
+  transition: transform 0.3s ease;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.shop-card:hover::after {
+  transform: translateY(0);
+}
+
+/* Ensure buttons stay above the overlay */
+.shop-card-footer {
+  position: relative;
+  z-index: 2;
+  background: white;
+}
+
+/* Add click feedback */
+.shop-card-content:active {
+  transform: scale(0.99);
+  transition: transform 0.1s;
+}
+
+/* Make buttons stop propagation */
+.shop-card-footer .btn {
+  position: relative;
+  z-index: 3;
+}
+
+/* Optional: Add a subtle arrow indicator in header */
+.shop-card-header {
+  position: relative;
+}
+
+.shop-card-header::after {
+  content: '→';
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 1.2em;
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.shop-card:hover .shop-card-header::after {
+  opacity: 1;
+  transform: translateX(5px);
 }
 
 /* ============================================

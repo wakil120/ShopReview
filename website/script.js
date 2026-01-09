@@ -141,26 +141,25 @@ function createShopCard(shop) {
   const stars = generateStars(shop.averageRating);
   
   card.innerHTML = `
-    <div class="shop-card-header">
-      <h3 class="shop-name">${escapeHtml(shop.name)}</h3>
-      <span class="shop-category">${escapeHtml(shop.category)}</span>
-      <p class="shop-location">📍 ${escapeHtml(shop.location)}</p>
-    </div>
-    <div class="shop-card-body">
-      <div class="rating-section">
-        <div class="rating-display">${shop.averageRating.toFixed(1)}</div>
-        <div>
-          <div class="stars">${stars}</div>
-          <div class="review-count">${shop.reviewCount} ${shop.reviewCount === 1 ? 'review' : 'reviews'}</div>
+    <div class="shop-card-content" onclick="showShopDetails('${shop._id}')">
+      <div class="shop-card-header">
+        <h3 class="shop-name">${escapeHtml(shop.name)}</h3>
+        <span class="shop-category">${escapeHtml(shop.category)}</span>
+        <p class="shop-location">📍 ${escapeHtml(shop.location)}</p>
+      </div>
+      <div class="shop-card-body">
+        <div class="rating-section">
+          <div class="rating-display">${shop.averageRating.toFixed(1)}</div>
+          <div>
+            <div class="stars">${stars}</div>
+            <div class="review-count">${shop.reviewCount} ${shop.reviewCount === 1 ? 'review' : 'reviews'}</div>
+          </div>
         </div>
       </div>
     </div>
     <div class="shop-card-footer">
-      <button class="btn btn-details" onclick="showShopDetails('${shop._id}')">
-        👁️ Details
-      </button>
-      <button class="btn btn-review" onclick="openReviewModal('${shop._id}', '${escapeHtml(shop.name)}')">
-        ✍️ Review
+      <button class="btn btn-review" onclick="event.stopPropagation(); openReviewModal('${shop._id}', '${escapeHtml(shop.name)}')">
+        ✍️ Write a Review
       </button>
     </div>
   `;
