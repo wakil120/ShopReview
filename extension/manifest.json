@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "Shop Comparator",
+  "name": "ShopReview Finder",
   "version": "1.0.0",
-  "description": "Compare shops and see their ratings, reviews, and detailed information",
+  "description": "Get shop reviews from copied text",
 
   "permissions": [
-    "storage"
+    "storage",
+    "clipboardRead"
   ],
 
   "host_permissions": [
@@ -15,6 +16,6 @@
 
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Shop Comparator"
+    "default_title": "ShopReview Finder"
   }
 }

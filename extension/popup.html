@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Shop Comparator</title>
+  <title>ShopReview Finder</title>
   <style>
     * {
       margin: 0;
@@ -13,16 +13,13 @@
 
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      width: 450px;
-      min-height: 600px;
-      padding: 0;
+      background: #f9fafb;
+      width: 400px;
+      min-height: 500px;
     }
 
     .container {
       padding: 20px;
-      background: white;
-      min-height: 100vh;
     }
 
     .header {
@@ -31,107 +28,243 @@
     }
 
     .header h1 {
-      font-size: 1.8em;
+      font-size: 1.4em;
       color: #667eea;
       margin-bottom: 5px;
     }
 
     .header p {
-      color: #666;
+      color: #6b7280;
+      font-size: 0.85em;
+    }
+
+    .copy-instructions {
+      background: #e0e7ff;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .copy-instructions h3 {
+      color: #4f46e5;
+      margin-bottom: 10px;
+      font-size: 0.95em;
+    }
+
+    .copy-instructions ol {
+      text-align: left;
+      padding-left: 20px;
+      color: #3730a3;
+      font-size: 0.85em;
+      line-height: 1.5;
+    }
+
+    .copy-instructions li {
+      margin-bottom: 8px;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.95em;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 10px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+      background: #f3f4f6;
+      color: #374151;
+    }
+
+    .btn-secondary:hover {
+      background: #e5e7eb;
+    }
+
+    .copied-text-box {
+      background: #f9fafb;
+      border: 2px dashed #d1d5db;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      min-height: 80px;
+      display: none;
+    }
+
+    .copied-text-box.show {
+      display: block;
+    }
+
+    .copied-text-box p {
+      color: #6b7280;
       font-size: 0.9em;
+      margin-bottom: 8px;
+    }
+
+    .copied-text {
+      background: white;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #e5e7eb;
+      font-weight: 600;
+      color: #374151;
+      word-break: break-word;
     }
 
     .form-group {
-      margin-bottom: 20px;
+      margin-bottom: 15px;
+      display: none;
+    }
+
+    .form-group.show {
+      display: block;
     }
 
     .form-group label {
       display: block;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
       font-weight: 600;
-      color: #333;
-      font-size: 0.95em;
+      color: #374151;
+      font-size: 0.9em;
     }
 
     .form-group input {
       width: 100%;
-      padding: 12px;
+      padding: 10px 12px;
       border: 2px solid #e5e7eb;
       border-radius: 6px;
-      font-size: 1em;
-      transition: border-color 0.2s;
+      font-size: 0.95em;
     }
 
     .form-group input:focus {
       outline: none;
       border-color: #667eea;
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
     }
 
-    .button-group {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-
-    .btn {
-      padding: 12px 16px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: 600;
-      font-size: 0.95em;
-      transition: all 0.2s;
-    }
-
-    .btn-compare {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      grid-column: 1 / 3;
-    }
-
-    .btn-compare:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-    }
-
-    .btn-clear {
-      background: #f3f4f6;
-      color: #333;
-    }
-
-    .btn-clear:hover {
-      background: #e5e7eb;
-    }
-
+    /* Results Section */
     .result-section {
       margin-top: 20px;
-      padding-top: 20px;
-      border-top: 2px solid #f0f0f0;
+      display: none;
     }
 
-    .result-section h2 {
-      font-size: 1.1em;
-      color: #667eea;
+    .result-section.show {
+      display: block;
+    }
+
+    .shop-result {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
       margin-bottom: 15px;
+    }
+
+    .shop-result h3 {
+      color: #667eea;
+      margin-bottom: 10px;
+      font-size: 1.1em;
+    }
+
+    .shop-result p {
+      margin: 8px 0;
+      color: #4b5563;
+      font-size: 0.9em;
+    }
+
+    .rating-badge {
+      display: inline-block;
+      background: #fef3c7;
+      color: #92400e;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 0.9em;
+      margin-top: 5px;
+    }
+
+    .no-shop-found {
+      background: #fee2e2;
+      color: #991b1b;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+      border-left: 4px solid #dc2626;
+    }
+
+    .no-shop-found h3 {
+      color: #991b1b;
+      margin-bottom: 10px;
+    }
+
+    .reviews-section {
+      margin-top: 20px;
+    }
+
+    .review-item {
+      background: #f9fafb;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      border-left: 3px solid #667eea;
+    }
+
+    .review-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .review-author {
+      font-weight: 600;
+      color: #374151;
+    }
+
+    .review-date {
+      color: #9ca3af;
+      font-size: 0.8em;
+    }
+
+    .review-rating {
+      color: #f59e0b;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .review-comment {
+      color: #4b5563;
+      font-size: 0.9em;
+      line-height: 1.4;
     }
 
     .loading {
       text-align: center;
-      padding: 20px;
-      color: #999;
-      display: none;
+      padding: 40px;
+      color: #9ca3af;
     }
 
     .loading-spinner {
       display: inline-block;
-      width: 20px;
-      height: 20px;
+      width: 24px;
+      height: 24px;
       border: 3px solid #f0f0f0;
       border-top-color: #667eea;
       border-radius: 50%;
-      animation: spin 0.6s linear infinite;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 10px;
     }
 
     @keyframes spin {
@@ -141,146 +274,61 @@
     .error-msg {
       background: #fee2e2;
       color: #991b1b;
-      padding: 12px;
-      border-radius: 6px;
+      padding: 15px;
+      border-radius: 8px;
       margin-bottom: 15px;
       border-left: 4px solid #dc2626;
-      display: none;
-      font-size: 0.9em;
-    }
-
-    .comparison-result {
-      background: #f9fafb;
-      padding: 15px;
-      border-radius: 6px;
-      border-left: 4px solid #667eea;
-      margin-bottom: 15px;
-      font-size: 0.9em;
-      display: none;
-    }
-
-    .shop-item {
-      background: white;
-      padding: 12px;
-      border-radius: 6px;
-      margin-bottom: 12px;
-      border: 1px solid #e5e7eb;
-    }
-
-    .shop-item h3 {
-      color: #667eea;
-      font-size: 1em;
-      margin-bottom: 8px;
-    }
-
-    .shop-item p {
-      margin: 4px 0;
-      color: #555;
-      font-size: 0.85em;
-      line-height: 1.4;
-    }
-
-    .shop-item strong {
-      color: #333;
-    }
-
-    .comparison-stats {
-      background: white;
-      padding: 12px;
-      border-radius: 6px;
-      border: 1px solid #e5e7eb;
-      font-size: 0.85em;
-    }
-
-    .comparison-stats h4 {
-      color: #667eea;
-      margin-bottom: 8px;
-    }
-
-    .comparison-stats p {
-      margin: 4px 0;
-      color: #555;
-    }
-
-    .rating-badge {
-      display: inline-block;
-      background: #fef3c7;
-      color: #92400e;
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-weight: 600;
-      font-size: 0.85em;
-    }
-
-    .info-box {
-      background: #e0e7ff;
-      color: #3730a3;
-      padding: 10px;
-      border-radius: 6px;
-      font-size: 0.85em;
-      margin-bottom: 15px;
+      text-align: center;
     }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h1>🏪 Shop Comparator</h1>
-      <p>Compare two shops side by side</p>
+      <h1>🔍 ShopReview Finder</h1>
+      <p>Copy a shop name, then click this extension</p>
     </div>
 
-    <div class="info-box">
-      📌 Enter shop names to compare their ratings and reviews
+    <div class="copy-instructions">
+      <h3>How to use:</h3>
+      <ol>
+        <li>Copy any shop name (Ctrl+C)</li>
+        <li>Click this extension icon</li>
+        <li>Click "Check Copied Text" below</li>
+      </ol>
     </div>
 
-    <!-- REMOVED onsubmit attribute from here -->
-    <form id="compareForm">
-      <div class="form-group">
-        <label for="shop1">Shop Name 1:</label>
-        <input 
-          type="text" 
-          id="shop1" 
-          placeholder="e.g., Pizza Paradise"
-          required
-        >
-      </div>
+    <div id="copiedTextBox" class="copied-text-box">
+      <p>📋 Copied text detected:</p>
+      <div id="copiedText" class="copied-text"></div>
+    </div>
 
-      <div class="form-group">
-        <label for="shop2">Shop Name 2:</label>
-        <input 
-          type="text" 
-          id="shop2" 
-          placeholder="e.g., Sushi Master"
-          required
-        >
-      </div>
+    <div id="findShopForm" class="form-group">
+      <label for="shopNameInput">Or enter shop name manually:</label>
+      <input 
+        type="text" 
+        id="shopNameInput" 
+        placeholder="Enter shop name..."
+      >
+    </div>
 
-      <div class="button-group">
-        <button type="submit" class="btn btn-compare">
-          ⚖️ Compare Shops
-        </button>
-        <button type="button" class="btn btn-clear" onclick="clearForm()">
-          Clear
-        </button>
-      </div>
-    </form>
+    <button id="checkClipboardBtn" class="btn btn-primary">
+      📋 Check Copied Text
+    </button>
 
-    <div class="loading" id="loading">
+    <button id="manualSearchBtn" class="btn btn-secondary">
+      🔍 Search Manually
+    </button>
+
+    <div id="loading" class="loading" style="display: none;">
       <div class="loading-spinner"></div>
-      <p style="margin-top: 10px;">Loading...</p>
+      <p>Searching for shop...</p>
     </div>
 
-    <div class="error-msg" id="errorMsg"></div>
+    <div id="errorMsg" class="error-msg" style="display: none;"></div>
 
-    <div class="result-section" id="resultSection" style="display: none;">
-      <h2>Comparison Results</h2>
-      
-      <div id="comparisonResult" class="comparison-result"></div>
-
-      <div id="shop1Result" class="shop-item"></div>
-      <div id="shop2Result" class="shop-item"></div>
-
-      <div id="statsResult" class="comparison-stats"></div>
+    <div id="resultSection" class="result-section">
+      <!-- Results will appear here -->
     </div>
   </div>
 

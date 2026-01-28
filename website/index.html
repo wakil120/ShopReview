@@ -39,6 +39,57 @@
     </div>
   </section>
 
+      <!-- Shop Comparator Button Section -->
+    <section class="comparator-button-section">
+      <button id="openComparatorBtn" class="comparator-fab">
+        ⚖️ Compare Shops
+      </button>
+    </section>
+
+    <!-- Comparator Modal -->
+    <div id="comparatorModal" class="modal">
+      <div class="modal-content comparator-modal">
+        <span class="close" onclick="closeComparatorModal()">&times;</span>
+        <h2>⚖️ Shop Comparator</h2>
+        <p class="subtitle">Compare two shops side by side</p>
+        
+        <div class="comparator-inputs">
+          <div class="comparator-input-group">
+            <label for="modalShop1">Shop 1:</label>
+            <input 
+              type="text" 
+              id="modalShop1" 
+              class="comparator-input"
+              placeholder="Enter first shop name..."
+              list="shopSuggestions1"
+            >
+            <datalist id="shopSuggestions1"></datalist>
+          </div>
+          
+          <div class="vs-badge">VS</div>
+          
+          <div class="comparator-input-group">
+            <label for="modalShop2">Shop 2:</label>
+            <input 
+              type="text" 
+              id="modalShop2" 
+              class="comparator-input"
+              placeholder="Enter second shop name..."
+              list="shopSuggestions2"
+            >
+            <datalist id="shopSuggestions2"></datalist>
+          </div>
+        </div>
+        
+        <button id="modalCompareBtn" class="comparator-submit-btn">
+          ⚖️ Compare Now
+        </button>
+        
+        <div id="comparatorResult" class="comparator-result">
+          <!-- Results will appear here -->
+        </div>
+      </div>
+    </div>
 
     <!-- Loading Indicator -->
     <div id="loading" class="loading" style="display: none;">

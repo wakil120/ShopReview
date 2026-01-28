@@ -622,12 +622,372 @@ function addResetFiltersButton() {
 }
 
 // ============================================
+// SHOP COMPARATOR MODAL FUNCTIONS
+// ============================================
+
+// Initialize when DOM loads
+document.addEventListener('DOMContentLoaded', () => {
+  // Comparator FAB button
+  const comparatorBtn = document.getElementById('openComparatorBtn');
+  if (comparatorBtn) {
+    comparatorBtn.addEventListener('click', openComparatorModal);
+  }
+  
+  // Modal compare button
+  const modalCompareBtn = document.getElementById('modalCompareBtn');
+  if (modalCompareBtn) {
+    modalCompareBtn.addEventListener('click', handleModalCompare);
+  }
+  
+  // Load shop suggestions for autocomplete
+  loadShopSuggestions();
+});
+
+function openComparatorModal() {
+  document.getElementById('comparatorModal').style.display = 'block';
+  document.getElementById('comparatorResult').style.display = 'none';
+  document.getElementById('comparatorResult').innerHTML = '';
+}
+
+function closeComparatorModal() {
+  document.getElementById('comparatorModal').style.display = 'none';
+}
+
+async function loadShopSuggestions() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/shops`);
+    if (!response.ok) return;
+    
+    const shops = await response.json();
+    const shopNames = shops.map(shop => shop.name);
+    
+    // Add to both datalists
+    const datalist1 = document.getElementById('shopSuggestions1');
+    const datalist2 = document.getElementById('shopSuggestions2');
+    
+    shopNames.forEach(name => {
+      const option1 = document.createElement('option');
+      option1.value = name;
+      datalist1.appendChild(option1);
+      
+      const option2 = document.createElement('option');
+      option2.value = name;
+      datalist2.appendChild(option2);
+    });
+  } catch (err) {
+    console.error('Error loading shop suggestions:', err);
+  }
+}
+
+async function handleModalCompare() {
+  const shop1 = document.getElementById('modalShop1').value.trim();
+  const shop2 = document.getElementById('modalShop2').value.trim();
+  const resultDiv = document.getElementById('comparatorResult');
+  
+  // Validation
+  if (!shop1 || !shop2) {
+    showComparatorResult('❌ Please enter both shop names', 'error');
+    return;
+  }
+  
+  if (shop1.toLowerCase() === shop2.toLowerCase()) {
+    showComparatorResult('❌ Please select two different shops', 'error');
+    return;
+  }
+  
+  // Show loading
+  resultDiv.innerHTML = `
+    <div class="comparator-loading">
+      <div class="comparator-loading-spinner"></div>
+      <p>Comparing shops...</p>
+    </div>
+  `;
+  resultDiv.style.display = 'block';
+  
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/shops/compare-by-name?shop1=${encodeURIComponent(shop1)}&shop2=${encodeURIComponent(shop2)}`
+    );
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('One or both shops not found. Check shop names!');
+      }
+      throw new Error(`Server error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    displayComparatorResult(data);
+    
+  } catch (error) {
+    showComparatorResult(`❌ ${error.message}`, 'error');
+  }
+}
+
+function displayComparatorResult(data) {
+  const { shop1, shop2, comparison } = data;
+  const resultDiv = document.getElementById('comparatorResult');
+  
+  const winner = shop1.averageRating > shop2.averageRating ? shop1.name : shop2.name;
+  const ratingDiff = Math.abs(shop1.averageRating - shop2.averageRating).toFixed(2);
+  
+  const html = `
+    <div class="comparator-shops">
+      <div class="comparator-shop">
+        <h4>${escapeHtml(shop1.name)}</h4>
+        <p><strong>Category:</strong> ${escapeHtml(shop1.category)}</p>
+        <p><strong>Location:</strong> ${escapeHtml(shop1.location)}</p>
+        <p><strong>Rating:</strong> <span style="color: #f59e0b; font-weight: bold;">${shop1.averageRating.toFixed(1)} ⭐</span></p>
+        <p><strong>Reviews:</strong> ${shop1.reviewCount}</p>
+      </div>
+      
+      <div class="comparator-shop">
+        <h4>${escapeHtml(shop2.name)}</h4>
+        <p><strong>Category:</strong> ${escapeHtml(shop2.category)}</p>
+        <p><strong>Location:</strong> ${escapeHtml(shop2.location)}</p>
+        <p><strong>Rating:</strong> <span style="color: #f59e0b; font-weight: bold;">${shop2.averageRating.toFixed(1)} ⭐</span></p>
+        <p><strong>Reviews:</strong> ${shop2.reviewCount}</p>
+      </div>
+    </div>
+    
+    <div class="comparator-stats">
+      <h4>📊 Comparison Summary</h4>
+      <p><strong>Rating Difference:</strong> ${ratingDiff} points</p>
+      <p><strong>Higher Rated:</strong> ${escapeHtml(winner)}</p>
+      <p><strong>More Reviews:</strong> ${escapeHtml(comparison.moreReviews)}</p>
+    </div>
+    
+    <div class="comparator-winner">
+      🏆 Winner: ${escapeHtml(winner)}
+    </div>
+  `;
+  
+  resultDiv.innerHTML = html;
+  resultDiv.style.display = 'block';
+}
+
+function showComparatorResult(message, type = 'error') {
+  const resultDiv = document.getElementById('comparatorResult');
+  const className = type === 'error' ? 'comparator-error' : 'comparator-success';
+  
+  resultDiv.innerHTML = `
+    <div class="${className}">
+      ${message}
+    </div>
+  `;
+  resultDiv.style.display = 'block';
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+  const comparatorModal = document.getElementById('comparatorModal');
+  if (event.target === comparatorModal) {
+    closeComparatorModal();
+  }
+};
+
+
+// ============================================
+// SHOP COMPARATOR MODAL FUNCTIONS
+// ============================================
+
+// Initialize when DOM loads
+document.addEventListener('DOMContentLoaded', () => {
+  // Comparator FAB button
+  const comparatorBtn = document.getElementById('openComparatorBtn');
+  if (comparatorBtn) {
+    comparatorBtn.addEventListener('click', openComparatorModal);
+  }
+  
+  // Modal compare button
+  const modalCompareBtn = document.getElementById('modalCompareBtn');
+  if (modalCompareBtn) {
+    modalCompareBtn.addEventListener('click', handleModalCompare);
+  }
+  
+  // Load shop suggestions for autocomplete
+  loadShopSuggestions();
+});
+
+function openComparatorModal() {
+  document.getElementById('comparatorModal').style.display = 'block';
+  document.getElementById('comparatorResult').style.display = 'none';
+  document.getElementById('comparatorResult').innerHTML = '';
+}
+
+function closeComparatorModal() {
+  document.getElementById('comparatorModal').style.display = 'none';
+}
+
+async function loadShopSuggestions() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/shops`);
+    if (!response.ok) return;
+    
+    const shops = await response.json();
+    const shopNames = shops.map(shop => shop.name);
+    
+    // Add to both datalists
+    const datalist1 = document.getElementById('shopSuggestions1');
+    const datalist2 = document.getElementById('shopSuggestions2');
+    
+    shopNames.forEach(name => {
+      const option1 = document.createElement('option');
+      option1.value = name;
+      datalist1.appendChild(option1);
+      
+      const option2 = document.createElement('option');
+      option2.value = name;
+      datalist2.appendChild(option2);
+    });
+  } catch (err) {
+    console.error('Error loading shop suggestions:', err);
+  }
+}
+
+async function handleModalCompare() {
+  const shop1 = document.getElementById('modalShop1').value.trim();
+  const shop2 = document.getElementById('modalShop2').value.trim();
+  const resultDiv = document.getElementById('comparatorResult');
+  
+  // Validation
+  if (!shop1 || !shop2) {
+    showComparatorResult('❌ Please enter both shop names', 'error');
+    return;
+  }
+  
+  if (shop1.toLowerCase() === shop2.toLowerCase()) {
+    showComparatorResult('❌ Please select two different shops', 'error');
+    return;
+  }
+  
+  // Show loading
+  resultDiv.innerHTML = `
+    <div class="comparator-loading">
+      <div class="comparator-loading-spinner"></div>
+      <p>Comparing shops...</p>
+    </div>
+  `;
+  resultDiv.style.display = 'block';
+  
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/shops/compare-by-name?shop1=${encodeURIComponent(shop1)}&shop2=${encodeURIComponent(shop2)}`
+    );
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('One or both shops not found. Check shop names!');
+      }
+      throw new Error(`Server error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    displayComparatorResult(data);
+    
+  } catch (error) {
+    showComparatorResult(`❌ ${error.message}`, 'error');
+  }
+}
+
+function displayComparatorResult(data) {
+  const { shop1, shop2, comparison } = data;
+  const resultDiv = document.getElementById('comparatorResult');
+  
+  const winner = shop1.averageRating > shop2.averageRating ? shop1.name : shop2.name;
+  const ratingDiff = Math.abs(shop1.averageRating - shop2.averageRating).toFixed(2);
+  
+  const html = `
+    <div class="comparator-shops">
+      <div class="comparator-shop">
+        <h4>${escapeHtml(shop1.name)}</h4>
+        <p><strong>Category:</strong> ${escapeHtml(shop1.category)}</p>
+        <p><strong>Location:</strong> ${escapeHtml(shop1.location)}</p>
+        <p><strong>Rating:</strong> <span style="color: #f59e0b; font-weight: bold;">${shop1.averageRating.toFixed(1)} ⭐</span></p>
+        <p><strong>Reviews:</strong> ${shop1.reviewCount}</p>
+      </div>
+      
+      <div class="comparator-shop">
+        <h4>${escapeHtml(shop2.name)}</h4>
+        <p><strong>Category:</strong> ${escapeHtml(shop2.category)}</p>
+        <p><strong>Location:</strong> ${escapeHtml(shop2.location)}</p>
+        <p><strong>Rating:</strong> <span style="color: #f59e0b; font-weight: bold;">${shop2.averageRating.toFixed(1)} ⭐</span></p>
+        <p><strong>Reviews:</strong> ${shop2.reviewCount}</p>
+      </div>
+    </div>
+    
+    <div class="comparator-stats">
+      <h4>📊 Comparison Summary</h4>
+      <p><strong>Rating Difference:</strong> ${ratingDiff} points</p>
+      <p><strong>Higher Rated:</strong> ${escapeHtml(winner)}</p>
+      <p><strong>More Reviews:</strong> ${escapeHtml(comparison.moreReviews)}</p>
+    </div>
+    
+    <div class="comparator-winner">
+      🏆 Winner: ${escapeHtml(winner)}
+    </div>
+  `;
+  
+  resultDiv.innerHTML = html;
+  resultDiv.style.display = 'block';
+}
+
+function showComparatorResult(message, type = 'error') {
+  const resultDiv = document.getElementById('comparatorResult');
+  const className = type === 'error' ? 'comparator-error' : 'comparator-success';
+  
+  resultDiv.innerHTML = `
+    <div class="${className}">
+      ${message}
+    </div>
+  `;
+  resultDiv.style.display = 'block';
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+  const comparatorModal = document.getElementById('comparatorModal');
+  if (event.target === comparatorModal) {
+    closeComparatorModal();
+  }
+};
+
+// ============================================
 // Initialize with reset button
 // ============================================
-document.addEventListener('DOMContentLoaded', () => {
+
+function initializeAll() {
   loadShops();
   setupEventListeners();
   setupAddShopButton();
   loadFilters();
-  addResetFiltersButton(); // Add this line
-});
+  addResetFiltersButton();
+  setupComparator();
+}
+
+function setupComparator() {
+  // Comparator FAB button
+  const comparatorBtn = document.getElementById('openComparatorBtn');
+  if (comparatorBtn) {
+    comparatorBtn.addEventListener('click', openComparatorModal);
+  }
+  
+  // Modal compare button
+  const modalCompareBtn = document.getElementById('modalCompareBtn');
+  if (modalCompareBtn) {
+    modalCompareBtn.addEventListener('click', handleModalCompare);
+  }
+  
+  // Load shop suggestions for autocomplete
+  loadShopSuggestions();
+  
+  // Close modal when clicking outside
+  window.addEventListener('click', function(event) {
+    const comparatorModal = document.getElementById('comparatorModal');
+    if (event.target === comparatorModal) {
+      closeComparatorModal();
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', initializeAll);
