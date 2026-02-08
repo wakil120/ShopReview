@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const shopController = require('../controllers/shopController');
+const authMiddleware = require('../middleware/authMiddleware');
 
 // GET routes MUST come before /:id route
 // Get all shops
@@ -25,17 +26,17 @@ router.get('/:id/performance', shopController.getShopPerformance);
 // Get shop by ID (MUST be last because /:id matches everything)
 router.get('/:id', shopController.getShopById);
 
-// Create a new shop
-router.post('/', shopController.createShop);
+// Create a new shop (protected)
+router.post('/', authMiddleware, shopController.createShop);
 
-// Add a photo to a shop
-router.post('/:id/photos', shopController.addShopPhoto);
+// Add a photo to a shop (protected)
+router.post('/:id/photos', authMiddleware, shopController.addShopPhoto);
 
 // Get all photos for a shop
 router.get('/:id/photos', shopController.getShopPhotos);
 
-// Delete a photo from a shop
-router.delete('/:id/photos/:photoIndex', shopController.deleteShopPhoto);
+// Delete a photo from a shop (protected)
+router.delete('/:id/photos/:photoIndex', authMiddleware, shopController.deleteShopPhoto);
 
 module.exports = router;
 

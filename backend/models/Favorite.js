@@ -6,9 +6,14 @@ const favoriteSchema = new mongoose.Schema({
         ref: 'Shop',
         required: true
     },
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: false
+    },
     sessionId: {
         type: String,
-        required: true,
+        required: false,
         trim: true
     },
     createdAt: {
@@ -17,7 +22,8 @@ const favoriteSchema = new mongoose.Schema({
     }
 });
 
-// Compound index to ensure a session can only favorite a shop once
-favoriteSchema.index({ shopId: 1, sessionId: 1 }, { unique: true });
+// Compound index to ensure a user or session can only favorite a shop once
+favoriteSchema.index({ shopId: 1, userId: 1 }, { unique: true, sparse: true });
+favoriteSchema.index({ shopId: 1, sessionId: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.models.Favorite || mongoose.model('Favorite', favoriteSchema);

@@ -6,6 +6,9 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000; // Changed to 3000 for consistency
 
+// Routes
+const authRoutes = require('./routes/authRoutes');
+
 // Middleware - UPDATED CORS
 app.use(cors({
   origin: '*',
@@ -41,6 +44,7 @@ const shopRoutes = require('./routes/shopRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 const favoriteRoutes = require('./routes/favoriteRoutes');
 
+app.use('/api/auth', authRoutes);
 app.use('/api/shops', shopRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/favorites', favoriteRoutes);

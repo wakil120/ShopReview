@@ -3,28 +3,55 @@ const Shop = require('../models/shop');
 
 // Add a shop to favorites
 exports.addFavorite = async (req, res) => {
-    try {
-        const { shopId, sessionId } = req.body;
+    console.log('=== addFavorite Debug ===');
+    console.log('Headers:', req.headers);
+    console.log('Body:', req.body);
+    console.log('User:', req.user);
 
-        if (!shopId || !sessionId) {
-            return res.status(400).json({ message: 'shopId and sessionId are required' });
+    try {
+        const { shopId } = req.body;
+        let query;
+
+        // If user is authenticated, use userId, otherwise use sessionId
+        if (req.user) {
+            console.log('User is authenticated, using userId:', req.user.id);
+            query = { shopId, userId: req.user.id };
+        } else {
+            const { sessionId } = req.body;
+            if (!sessionId) {
+                console.log('User not authenticated and no sessionId');
+                return res.status(400).json({ message: 'sessionId is required for unauthenticated users' });
+            }
+            console.log('User not authenticated, using sessionId:', sessionId);
+            query = { shopId, sessionId };
         }
+
+        // Check if shopId is provided
+        if (!shopId) {
+            console.log('No shopId provided');
+            return res.status(400).json({ message: 'shopId is required' });
+        }
+        console.log('ShopId:', shopId);
 
         // Check if shop exists
         const shop = await Shop.findById(shopId);
         if (!shop) {
+            console.log('Shop not found with id:', shopId);
             return res.status(404).json({ message: 'Shop not found' });
         }
+        console.log('Found shop:', shop.name);
 
         // Check if already favorited
-        const existing = await Favorite.findOne({ shopId, sessionId });
+        const existing = await Favorite.findOne(query);
         if (existing) {
+            console.log('Shop already favorited');
             return res.status(400).json({ message: 'Shop already in favorites' });
         }
 
         // Create favorite
-        const favorite = new Favorite({ shopId, sessionId });
+        const favorite = new Favorite(query);
         await favorite.save();
+        console.log('Created favorite:', favorite);
 
         // Update shop favorite count
         await Shop.findByIdAndUpdate(shopId, { $inc: { favoriteCount: 1 } });
@@ -34,6 +61,7 @@ exports.addFavorite = async (req, res) => {
             favorite
         });
     } catch (error) {
+        console.error('Error in addFavorite:', error);
         if (error.code === 11000) {
             return res.status(400).json({ message: 'Shop already in favorites' });
         }
@@ -45,13 +73,20 @@ exports.addFavorite = async (req, res) => {
 exports.removeFavorite = async (req, res) => {
     try {
         const { shopId } = req.params;
-        const { sessionId } = req.query;
+        let query;
 
-        if (!sessionId) {
-            return res.status(400).json({ message: 'sessionId is required' });
+        // If user is authenticated, use userId, otherwise use sessionId
+        if (req.user) {
+            query = { shopId, userId: req.user.id };
+        } else {
+            const { sessionId } = req.query;
+            if (!sessionId) {
+                return res.status(400).json({ message: 'sessionId is required for unauthenticated users' });
+            }
+            query = { shopId, sessionId };
         }
 
-        const favorite = await Favorite.findOneAndDelete({ shopId, sessionId });
+        const favorite = await Favorite.findOneAndDelete(query);
 
         if (!favorite) {
             return res.status(404).json({ message: 'Favorite not found' });
@@ -66,16 +101,23 @@ exports.removeFavorite = async (req, res) => {
     }
 };
 
-// Get all favorites for a session
+// Get all favorites for a user or session
 exports.getFavorites = async (req, res) => {
     try {
-        const { sessionId } = req.query;
+        let query;
 
-        if (!sessionId) {
-            return res.status(400).json({ message: 'sessionId is required' });
+        // If user is authenticated, use userId, otherwise use sessionId
+        if (req.user) {
+            query = { userId: req.user.id };
+        } else {
+            const { sessionId } = req.query;
+            if (!sessionId) {
+                return res.status(400).json({ message: 'sessionId is required for unauthenticated users' });
+            }
+            query = { sessionId };
         }
 
-        const favorites = await Favorite.find({ sessionId })
+        const favorites = await Favorite.find(query)
             .populate('shopId')
             .sort({ createdAt: -1 });
 
@@ -94,13 +136,20 @@ exports.getFavorites = async (req, res) => {
 exports.checkFavorite = async (req, res) => {
     try {
         const { shopId } = req.params;
-        const { sessionId } = req.query;
+        let query;
 
-        if (!sessionId) {
-            return res.status(400).json({ message: 'sessionId is required' });
+        // If user is authenticated, use userId, otherwise use sessionId
+        if (req.user) {
+            query = { shopId, userId: req.user.id };
+        } else {
+            const { sessionId } = req.query;
+            if (!sessionId) {
+                return res.status(400).json({ message: 'sessionId is required for unauthenticated users' });
+            }
+            query = { shopId, sessionId };
         }
 
-        const favorite = await Favorite.findOne({ shopId, sessionId });
+        const favorite = await Favorite.findOne(query);
 
         res.json({ isFavorited: !!favorite });
     } catch (error) {

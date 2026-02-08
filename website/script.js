@@ -3,6 +3,47 @@
 // ============================================
 const API_BASE_URL = 'http://localhost:3000/api';
 
+// ============================================
+// AUTHENTICATION
+// ============================================
+function isAuthenticated() {
+  const token = localStorage.getItem('token');
+  const user = localStorage.getItem('user');
+  return token && user;
+}
+
+function getUser() {
+  const userData = localStorage.getItem('user');
+  return userData ? JSON.parse(userData) : null;
+}
+
+function getAuthHeaders() {
+  const token = localStorage.getItem('token');
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
+}
+
+async function logout() {
+  try {
+    // Call backend logout endpoint
+    await fetch(`${API_BASE_URL}/auth/logout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders()
+      }
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
+  } finally {
+    // Clear local storage and redirect to login
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('rememberedEmail');
+    localStorage.removeItem('shopReviewSessionId'); // Clear favorites session
+    window.location.href = 'login.html';
+  }
+}
+
 // Session ID for favorites and helpful votes (stored in localStorage)
 function getSessionId() {
   let sessionId = localStorage.getItem('shopReviewSessionId');
@@ -32,12 +73,38 @@ function debounce(func, wait) {
 // INITIALIZATION
 // ============================================
 document.addEventListener('DOMContentLoaded', () => {
+  // Check authentication status
+  updateAuthSection();
+
   loadShops();
   setupEventListeners();
   setupAddShopButton();
   loadFilters();
   updateFavoritesCount();
 });
+
+function updateAuthSection() {
+  const authSection = document.getElementById('authSection');
+  if (!authSection) return;
+
+  if (isAuthenticated()) {
+    const user = getUser();
+    authSection.innerHTML = `
+      <div class="user-profile">
+        <span class="user-name">👤 ${user.username}</span>
+        <button id="logoutBtn" class="logout-header-btn" onclick="logout()">
+          Logout
+        </button>
+      </div>
+    `;
+  } else {
+    authSection.innerHTML = `
+      <button id="loginBtn" class="login-header-btn" onclick="window.location.href='login.html'">
+        🔐 Login
+      </button>
+    `;
+  }
+}
 
 // ============================================
 // EVENT LISTENERS
@@ -68,7 +135,13 @@ function setupEventListeners() {
 function setupAddShopButton() {
   const addShopBtn = document.getElementById('openAddShopModalBtn');
   if (addShopBtn) {
-    addShopBtn.addEventListener('click', openAddShopModal);
+    // Show button only if user is authenticated
+    if (isAuthenticated()) {
+      addShopBtn.style.display = 'block';
+      addShopBtn.addEventListener('click', openAddShopModal);
+    } else {
+      addShopBtn.style.display = 'none';
+    }
   }
 }
 
@@ -613,6 +686,12 @@ function closeAddShopModal() {
 async function submitAddShop(e) {
   e.preventDefault();
 
+  // Check if user is authenticated
+  if (!isAuthenticated()) {
+    window.location.href = 'login.html';
+    return;
+  }
+
   const name = document.getElementById('newShopName').value.trim();
   const category = document.getElementById('newShopCategory').value.trim();
   const location = document.getElementById('newShopLocation').value.trim();
@@ -627,7 +706,10 @@ async function submitAddShop(e) {
   try {
     const resp = await fetch(`${API_BASE_URL}/shops`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders()
+      },
       body: JSON.stringify({ name, category, location })
     });
 
@@ -1286,18 +1368,27 @@ document.addEventListener('DOMContentLoaded', initializeAll);
 // ============================================
 
 async function toggleFavorite(shopId) {
-  const sessionId = getSessionId();
+  // Check if user is authenticated
+  if (!isAuthenticated()) {
+    alert('Please login to add favorites');
+    window.location.href = 'login.html';
+    return;
+  }
+
   const favBtn = document.getElementById(`fav-${shopId}`);
 
   try {
     // Check if already favorited
-    const checkResp = await fetch(`${API_BASE_URL}/favorites/check/${shopId}?sessionId=${sessionId}`);
+    const checkResp = await fetch(`${API_BASE_URL}/favorites/check/${shopId}`, {
+      headers: getAuthHeaders()
+    });
     const checkData = await checkResp.json();
 
     if (checkData.isFavorited) {
       // Remove from favorites
-      await fetch(`${API_BASE_URL}/favorites/${shopId}?sessionId=${sessionId}`, {
-        method: 'DELETE'
+      await fetch(`${API_BASE_URL}/favorites/${shopId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
       });
       favBtn.classList.remove('active');
       favBtn.innerHTML = '🤍';
@@ -1305,8 +1396,11 @@ async function toggleFavorite(shopId) {
       // Add to favorites
       await fetch(`${API_BASE_URL}/favorites`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ shopId, sessionId })
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
+        body: JSON.stringify({ shopId })
       });
       favBtn.classList.add('active');
       favBtn.innerHTML = '❤️';
@@ -1325,10 +1419,15 @@ async function toggleFavorite(shopId) {
 }
 
 async function checkAndUpdateFavoriteButton(shopId) {
-  const sessionId = getSessionId();
+  // Check if user is authenticated
+  if (!isAuthenticated()) {
+    return;
+  }
 
   try {
-    const resp = await fetch(`${API_BASE_URL}/favorites/check/${shopId}?sessionId=${sessionId}`);
+    const resp = await fetch(`${API_BASE_URL}/favorites/check/${shopId}`, {
+      headers: getAuthHeaders()
+    });
     const data = await resp.json();
 
     const favBtn = document.getElementById(`fav-${shopId}`);
@@ -1342,10 +1441,19 @@ async function checkAndUpdateFavoriteButton(shopId) {
 }
 
 async function updateFavoritesCount() {
-  const sessionId = getSessionId();
+  // Check if user is authenticated
+  if (!isAuthenticated()) {
+    const countEl = document.getElementById('favCount');
+    if (countEl) {
+      countEl.textContent = '0';
+    }
+    return;
+  }
 
   try {
-    const resp = await fetch(`${API_BASE_URL}/favorites?sessionId=${sessionId}`);
+    const resp = await fetch(`${API_BASE_URL}/favorites`, {
+      headers: getAuthHeaders()
+    });
     const favorites = await resp.json();
 
     const countEl = document.getElementById('favCount');
@@ -1368,13 +1476,27 @@ function closeFavoritesModal() {
 }
 
 async function loadFavorites() {
-  const sessionId = getSessionId();
+  // Check if user is authenticated
+  if (!isAuthenticated()) {
+    const listEl = document.getElementById('favoritesList');
+    listEl.innerHTML = `
+      <div class="empty-favorites">
+        <div class="empty-favorites-icon">💔</div>
+        <p>Please login to view favorites!</p>
+        <p style="font-size: 0.9em; opacity: 0.8;">Login to save and view your favorite shops.</p>
+      </div>
+    `;
+    return;
+  }
+
   const listEl = document.getElementById('favoritesList');
 
   try {
     listEl.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">Loading...</div>';
 
-    const resp = await fetch(`${API_BASE_URL}/favorites?sessionId=${sessionId}`);
+    const resp = await fetch(`${API_BASE_URL}/favorites`, {
+      headers: getAuthHeaders()
+    });
     const favorites = await resp.json();
 
     if (favorites.length === 0) {
@@ -1413,11 +1535,17 @@ async function loadFavorites() {
 }
 
 async function removeFavorite(shopId) {
-  const sessionId = getSessionId();
+  // Check if user is authenticated
+  if (!isAuthenticated()) {
+    alert('Please login to remove favorites');
+    window.location.href = 'login.html';
+    return;
+  }
 
   try {
-    await fetch(`${API_BASE_URL}/favorites/${shopId}?sessionId=${sessionId}`, {
-      method: 'DELETE'
+    await fetch(`${API_BASE_URL}/favorites/${shopId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
     });
 
     // Update the shop card button if visible

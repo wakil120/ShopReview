@@ -1,20 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const favoriteController = require('../controllers/favoriteController');
+const authMiddleware = require('../middleware/authMiddleware');
 
-// Add a shop to favorites
-router.post('/', favoriteController.addFavorite);
+// Protected routes (require authentication)
+router.post('/', authMiddleware, favoriteController.addFavorite);
+router.get('/', authMiddleware, favoriteController.getFavorites);
+router.get('/check/:shopId', authMiddleware, favoriteController.checkFavorite);
+router.delete('/:shopId', authMiddleware, favoriteController.removeFavorite);
 
-// Get all favorites for a session
-router.get('/', favoriteController.getFavorites);
-
-// Check if a shop is favorited
-router.get('/check/:shopId', favoriteController.checkFavorite);
-
-// Get favorite count for a shop
+// Public route (no authentication required)
 router.get('/count/:shopId', favoriteController.getFavoriteCount);
-
-// Remove a shop from favorites
-router.delete('/:shopId', favoriteController.removeFavorite);
 
 module.exports = router;

@@ -1,0 +1,24 @@
+{
+  "name": "shopreview",
+  "version": "1.0.0",
+  "description": "A complete, production-ready full-stack application where users can view shops, search them, see average ratings, view reviews, and add their own reviews. Built with Node.js, Express, MongoDB, React-like vanilla JavaScript, Flutter, and Chrome Extension.",
+  "main": "test-favorites.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wakil120/ShopReview.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/wakil120/ShopReview/issues"
+  },
+  "homepage": "https://github.com/wakil120/ShopReview#readme",
+  "dependencies": {
+    "axios": "^1.13.5"
+  }
+}
