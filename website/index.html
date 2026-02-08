@@ -1,45 +1,45 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ShopReview - Find & Review Great Shops</title>
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
   <div class="container">
     <!-- Header -->
     <header class="header">
       <h1>🏪 ShopReview</h1>
       <p class="tagline">Discover and review the best shops in your area</p>
+      <button id="favoritesBtn" class="favorites-header-btn" onclick="openFavoritesModal()">
+        ❤️ My Favorites <span id="favCount" class="fav-count">0</span>
+      </button>
     </header>
 
     <!-- Search Section -->
     <section class="search-section">
       <div class="search-box">
-        <input 
-          type="text" 
-          id="searchInput" 
-          class="search-input" 
-          placeholder="Search shops by name..."
-        > 
+        <input type="text" id="searchInput" class="search-input" placeholder="Search shops by name...">
       </div>
     </section>
 
     <!-- Filters Section -->
-  <section class="filters-section">
-    <div class="filter-group">
-      <h3>📂 Categories</h3>
-      <div id="categoryFilters" class="filter-list"></div>
-    </div>
+    <section class="filters-section">
+      <div class="filter-group">
+        <h3>📂 Categories</h3>
+        <div id="categoryFilters" class="filter-list"></div>
+      </div>
 
-    <div class="filter-group">
-      <h3>📍 Locations</h3>
-      <div id="locationFilters" class="filter-list"></div>
-    </div>
-  </section>
+      <div class="filter-group">
+        <h3>📍 Locations</h3>
+        <div id="locationFilters" class="filter-list"></div>
+      </div>
+    </section>
 
-      <!-- Shop Comparator Button Section -->
+    <!-- Shop Comparator Button Section -->
     <section class="comparator-button-section">
       <button id="openComparatorBtn" class="comparator-fab">
         ⚖️ Compare Shops
@@ -52,39 +52,29 @@
         <span class="close" onclick="closeComparatorModal()">&times;</span>
         <h2>⚖️ Shop Comparator</h2>
         <p class="subtitle">Compare two shops side by side</p>
-        
+
         <div class="comparator-inputs">
           <div class="comparator-input-group">
             <label for="modalShop1">Shop 1:</label>
-            <input 
-              type="text" 
-              id="modalShop1" 
-              class="comparator-input"
-              placeholder="Enter first shop name..."
-              list="shopSuggestions1"
-            >
+            <input type="text" id="modalShop1" class="comparator-input" placeholder="Enter first shop name..."
+              list="shopSuggestions1">
             <datalist id="shopSuggestions1"></datalist>
           </div>
-          
+
           <div class="vs-badge">VS</div>
-          
+
           <div class="comparator-input-group">
             <label for="modalShop2">Shop 2:</label>
-            <input 
-              type="text" 
-              id="modalShop2" 
-              class="comparator-input"
-              placeholder="Enter second shop name..."
-              list="shopSuggestions2"
-            >
+            <input type="text" id="modalShop2" class="comparator-input" placeholder="Enter second shop name..."
+              list="shopSuggestions2">
             <datalist id="shopSuggestions2"></datalist>
           </div>
         </div>
-        
+
         <button id="modalCompareBtn" class="comparator-submit-btn">
           ⚖️ Compare Now
         </button>
-        
+
         <div id="comparatorResult" class="comparator-result">
           <!-- Results will appear here -->
         </div>
@@ -113,7 +103,7 @@
         <h2>Add Review</h2>
         <form id="reviewForm">
           <input type="hidden" id="currentShopId">
-          
+
           <div class="form-group">
             <label for="reviewerName">Your Name:</label>
             <input type="text" id="reviewerName" required>
@@ -164,7 +154,7 @@
       <span class="close" onclick="closeAddShopModal()">&times;</span>
       <h2>➕ Add a New Shop</h2>
       <p class="subtitle">Share a great shop with the community!</p>
-      
+
       <form id="addShopForm">
         <div class="form-group">
           <label for="newShopName">🏪 Shop Name</label>
@@ -187,6 +177,19 @@
     </div>
   </div>
 
+  <!-- Favorites Modal -->
+  <div id="favoritesModal" class="modal">
+    <div class="modal-content favorites-modal">
+      <span class="close" onclick="closeFavoritesModal()">&times;</span>
+      <h2>❤️ My Favorite Shops</h2>
+      <p class="subtitle">Your saved shops for quick access</p>
+      <div id="favoritesList" class="favorites-list">
+        <!-- Favorites will be loaded here -->
+      </div>
+    </div>
+  </div>
+
   <script src="script.js"></script>
 </body>
+
 </html>

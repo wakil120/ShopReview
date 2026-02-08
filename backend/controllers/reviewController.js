@@ -23,11 +23,11 @@ exports.getReviewsByShop = async (req, res) => {
 exports.getReviewsWithFilters = async (req, res) => {
   try {
     const { shopId } = req.params;
-    const { 
-      minRating, 
-      sortBy, 
-      startDate, 
-      endDate 
+    const {
+      minRating,
+      sortBy,
+      startDate,
+      endDate
     } = req.query;
 
     // Check if shop exists
@@ -37,31 +37,31 @@ exports.getReviewsWithFilters = async (req, res) => {
     }
 
     const filters = {};
-    
+
     if (minRating) {
       const rating = parseInt(minRating);
       if (rating >= 1 && rating <= 5) {
         filters.minRating = rating;
       }
     }
-    
+
     if (sortBy && ['rating_high', 'rating_low', 'date_old', 'date_new'].includes(sortBy)) {
       filters.sortBy = sortBy;
     }
-    
+
     if (startDate) {
       filters.startDate = startDate;
     }
-    
+
     if (endDate) {
       filters.endDate = endDate;
     }
 
     const reviews = await Review.getReviewsWithFilters(shopId, filters);
-    
+
     // Get review statistics
     const stats = await Review.getReviewStats(shopId);
-    
+
     res.json({
       reviews,
       filters: {
@@ -82,9 +82,9 @@ exports.getReviewsWithFilters = async (req, res) => {
 exports.getReviewStatistics = async (req, res) => {
   try {
     const { shopId } = req.params;
-    
+
     const stats = await Review.getReviewStats(shopId);
-    
+
     res.json(stats);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -98,8 +98,8 @@ exports.addReview = async (req, res) => {
 
     // Validate input
     if (!shopId || !rating || !comment || !reviewer) {
-      return res.status(400).json({ 
-        message: 'shopId, rating, comment, and reviewer are required' 
+      return res.status(400).json({
+        message: 'shopId, rating, comment, and reviewer are required'
       });
     }
 
@@ -178,6 +178,99 @@ exports.deleteReview = async (req, res) => {
     await shop.save();
 
     res.json({ message: 'Review deleted successfully', updatedShop: shop });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Mark a review as helpful
+exports.markHelpful = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { sessionId } = req.body;
+
+    if (!sessionId) {
+      return res.status(400).json({ message: 'sessionId is required' });
+    }
+
+    const review = await Review.findById(id);
+    if (!review) {
+      return res.status(404).json({ message: 'Review not found' });
+    }
+
+    // Check if already voted
+    if (review.helpfulVoters.includes(sessionId)) {
+      return res.status(400).json({ message: 'You have already marked this review as helpful' });
+    }
+
+    // Add vote
+    review.helpfulVoters.push(sessionId);
+    review.helpfulCount += 1;
+    await review.save();
+
+    res.json({
+      message: 'Review marked as helpful',
+      helpfulCount: review.helpfulCount
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Remove helpful vote from a review
+exports.unmarkHelpful = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { sessionId } = req.query;
+
+    if (!sessionId) {
+      return res.status(400).json({ message: 'sessionId is required' });
+    }
+
+    const review = await Review.findById(id);
+    if (!review) {
+      return res.status(404).json({ message: 'Review not found' });
+    }
+
+    // Check if voted
+    const voterIndex = review.helpfulVoters.indexOf(sessionId);
+    if (voterIndex === -1) {
+      return res.status(400).json({ message: 'You have not marked this review as helpful' });
+    }
+
+    // Remove vote
+    review.helpfulVoters.splice(voterIndex, 1);
+    review.helpfulCount = Math.max(0, review.helpfulCount - 1);
+    await review.save();
+
+    res.json({
+      message: 'Helpful vote removed',
+      helpfulCount: review.helpfulCount
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Check if a session has voted helpful on a review
+exports.checkHelpful = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { sessionId } = req.query;
+
+    if (!sessionId) {
+      return res.status(400).json({ message: 'sessionId is required' });
+    }
+
+    const review = await Review.findById(id);
+    if (!review) {
+      return res.status(404).json({ message: 'Review not found' });
+    }
+
+    res.json({
+      hasVoted: review.helpfulVoters.includes(sessionId),
+      helpfulCount: review.helpfulCount
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

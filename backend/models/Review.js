@@ -22,6 +22,13 @@ const reviewSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  helpfulCount: {
+    type: Number,
+    default: 0
+  },
+  helpfulVoters: [{
+    type: String  // Session IDs of users who voted helpful
+  }],
   date: {
     type: Date,
     default: Date.now
@@ -29,14 +36,14 @@ const reviewSchema = new mongoose.Schema({
 });
 
 
-reviewSchema.statics.getReviewsWithFilters = async function(shopId, filters = {}) {
+reviewSchema.statics.getReviewsWithFilters = async function (shopId, filters = {}) {
   let query = { shopId };
-  
+
   // Apply rating filter
   if (filters.minRating) {
     query.rating = { $gte: filters.minRating };
   }
-  
+
   // Apply date range filter
   if (filters.startDate) {
     query.date = { $gte: new Date(filters.startDate) };
@@ -48,7 +55,7 @@ reviewSchema.statics.getReviewsWithFilters = async function(shopId, filters = {}
       query.date = { $lte: new Date(filters.endDate) };
     }
   }
-  
+
   // Apply sorting
   let sort = {};
   if (filters.sortBy === 'rating_high') {
@@ -61,21 +68,21 @@ reviewSchema.statics.getReviewsWithFilters = async function(shopId, filters = {}
     // Default: newest first
     sort = { date: -1 };
   }
-  
+
   return await this.find(query).sort(sort);
 };
 
-reviewSchema.statics.getReviewStats = async function(shopId) {
+reviewSchema.statics.getReviewStats = async function (shopId) {
   const reviews = await this.find({ shopId });
-  
+
   const ratingDistribution = {
     5: 0, 4: 0, 3: 0, 2: 0, 1: 0
   };
-  
+
   reviews.forEach(review => {
     ratingDistribution[review.rating] += 1;
   });
-  
+
   return {
     total: reviews.length,
     average: reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length,

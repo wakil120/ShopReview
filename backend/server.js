@@ -26,22 +26,24 @@ mongoose.connect('mongodb://localhost:27017/shopreview', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-.then(() => {
-  console.log('✓ MongoDB connected successfully');
-  initializeData();
-})
-.catch(err => {
-  console.error('✗ MongoDB connection error:', err.message);
-  console.log('Make sure MongoDB is running: mongod');
-  process.exit(1);
-});
+  .then(() => {
+    console.log('✓ MongoDB connected successfully');
+    initializeData();
+  })
+  .catch(err => {
+    console.error('✗ MongoDB connection error:', err.message);
+    console.log('Make sure MongoDB is running: mongod');
+    process.exit(1);
+  });
 
 // Routes
 const shopRoutes = require('./routes/shopRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
+const favoriteRoutes = require('./routes/favoriteRoutes');
 
 app.use('/api/shops', shopRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/favorites', favoriteRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

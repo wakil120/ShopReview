@@ -1,7 +1,17 @@
 // ============================================
 // CONSTANTS
 // ============================================
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'http://localhost:3000/api';
+
+// Session ID for favorites and helpful votes (stored in localStorage)
+function getSessionId() {
+  let sessionId = localStorage.getItem('shopReviewSessionId');
+  if (!sessionId) {
+    sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('shopReviewSessionId', sessionId);
+  }
+  return sessionId;
+}
 
 // ============================================
 // DEBOUNCE HELPER (for better performance)
@@ -25,7 +35,8 @@ document.addEventListener('DOMContentLoaded', () => {
   loadShops();
   setupEventListeners();
   setupAddShopButton();
-  loadFilters(); 
+  loadFilters();
+  updateFavoritesCount();
 });
 
 // ============================================
@@ -37,7 +48,7 @@ function setupEventListeners() {
     // Add real-time search with debouncing (type-as-you-search)
     const debouncedSearch = debounce(handleSearch, 300);
     searchInput.addEventListener('input', debouncedSearch);
-    
+
     // Keep Enter key functionality (instant search)
     searchInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') handleSearch();
@@ -82,24 +93,24 @@ async function loadShops() {
 
 async function handleSearch() {
   const searchTerm = document.getElementById('searchInput').value.trim();
-  
+
   if (!searchTerm) {
     loadShops();
     return;
   }
-  
+
   showLoading();
   clearError();
-  
+
   try {
     const response = await fetch(`${API_BASE_URL}/shops/search?name=${encodeURIComponent(searchTerm)}`);
-    
+
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
-    
+
     const shops = await response.json();
-    
+
     if (shops.length === 0) {
       showError(`No shops found matching "${searchTerm}"`);
       document.getElementById('shopsList').innerHTML = '';
@@ -117,7 +128,7 @@ async function handleSearch() {
 function displayShops(shops) {
   const shopsList = document.getElementById('shopsList');
   shopsList.innerHTML = '';
-  
+
   if (shops.length === 0) {
     shopsList.innerHTML = `
       <div class="empty-state" style="grid-column: 1 / -1;">
@@ -127,7 +138,7 @@ function displayShops(shops) {
     `;
     return;
   }
-  
+
   shops.forEach(shop => {
     const shopCard = createShopCard(shop);
     shopsList.appendChild(shopCard);
@@ -137,12 +148,15 @@ function displayShops(shops) {
 function createShopCard(shop) {
   const card = document.createElement('div');
   card.className = 'shop-card';
-  
+
   const stars = generateStars(shop.averageRating);
-  
+
   card.innerHTML = `
     <div class="shop-card-content" onclick="showShopDetails('${shop._id}')">
       <div class="shop-card-header">
+        <button class="favorite-btn" id="fav-${shop._id}" onclick="event.stopPropagation(); toggleFavorite('${shop._id}')" title="Add to favorites">
+          🤍
+        </button>
         <h3 class="shop-name">${escapeHtml(shop.name)}</h3>
         <span class="shop-category">${escapeHtml(shop.category)}</span>
         <p class="shop-location">📍 ${escapeHtml(shop.location)}</p>
@@ -163,7 +177,10 @@ function createShopCard(shop) {
       </button>
     </div>
   `;
-  
+
+  // Check if favorited and update button state
+  checkAndUpdateFavoriteButton(shop._id);
+
   return card;
 }
 
@@ -171,11 +188,11 @@ function generateStars(rating) {
   const fullStars = Math.floor(rating);
   const hasHalfStar = rating % 1 >= 0.5;
   let stars = '⭐'.repeat(fullStars);
-  
+
   if (hasHalfStar && fullStars < 5) {
     stars += '✨';
   }
-  
+
   return stars;
 }
 
@@ -193,7 +210,7 @@ async function showShopDetails(shopId) {
     // Fetch shop details
     const shopResp = await fetch(`${API_BASE_URL}/shops/${shopId}`);
     if (!shopResp.ok) throw new Error('Failed to fetch shop details');
-    
+
     const shop = await shopResp.json();
 
     // Display modal with filter UI
@@ -278,7 +295,7 @@ async function showShopDetails(shopId) {
     // Load initial reviews
     await loadAndDisplayReviews(shopId);
     document.getElementById('detailsModal').classList.add('show');
-    
+
   } catch (err) {
     console.error('Error fetching shop details:', err);
     showError('Failed to load shop details.');
@@ -292,25 +309,25 @@ async function showShopDetails(shopId) {
 async function loadAndDisplayReviews(shopId) {
   const reviewsContainer = document.getElementById('reviewsContainer');
   const filterInfo = document.getElementById('filterInfo');
-  
+
   try {
     reviewsContainer.innerHTML = `
       <div style="text-align: center; padding: 20px; color: #9ca3af;">
         Loading reviews...
       </div>
     `;
-    
+
     // Build query parameters
     const params = new URLSearchParams();
-    
+
     if (currentReviewFilters.minRating) {
       params.append('minRating', currentReviewFilters.minRating);
     }
-    
+
     if (currentReviewFilters.sortBy) {
       params.append('sortBy', currentReviewFilters.sortBy);
     }
-    
+
     // Update filter info text
     let filterText = 'Showing ';
     if (currentReviewFilters.minRating) {
@@ -318,9 +335,9 @@ async function loadAndDisplayReviews(shopId) {
     } else {
       filterText += 'all reviews ';
     }
-    
+
     filterText += 'sorted by ';
-    switch(currentReviewFilters.sortBy) {
+    switch (currentReviewFilters.sortBy) {
       case 'date_new':
         filterText += 'newest first';
         break;
@@ -336,18 +353,18 @@ async function loadAndDisplayReviews(shopId) {
       default:
         filterText += 'newest first';
     }
-    
+
     filterInfo.textContent = filterText;
-    
+
     // Fetch filtered reviews
     const response = await fetch(
       `${API_BASE_URL}/reviews/${shopId}/filter?${params.toString()}`
     );
-    
+
     if (!response.ok) throw new Error('Failed to load reviews');
-    
+
     const data = await response.json();
-    
+
     if (data.reviews.length === 0) {
       reviewsContainer.innerHTML = `
         <div style="text-align: center; padding: 40px; color: #9ca3af;">
@@ -357,7 +374,7 @@ async function loadAndDisplayReviews(shopId) {
       `;
       return;
     }
-    
+
     // Display reviews
     let reviewsHTML = '';
     data.reviews.forEach(review => {
@@ -367,7 +384,7 @@ async function loadAndDisplayReviews(shopId) {
         month: 'short',
         day: 'numeric'
       });
-      
+
       reviewsHTML += `
         <div class="review-item" style="background: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 12px; border-left: 3px solid #667eea;">
           <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
@@ -381,9 +398,9 @@ async function loadAndDisplayReviews(shopId) {
         </div>
       `;
     });
-    
+
     reviewsContainer.innerHTML = reviewsHTML;
-    
+
   } catch (error) {
     console.error('Error loading reviews:', error);
     reviewsContainer.innerHTML = `
@@ -398,10 +415,10 @@ function applyReviewFilter(shopId, minRating, sortBy) {
   // Update current filters
   currentReviewFilters.minRating = minRating === 'null' ? null : parseInt(minRating);
   currentReviewFilters.sortBy = sortBy;
-  
+
   // Update button active states
   updateFilterButtonStates(minRating, sortBy);
-  
+
   // Reload reviews with new filters
   loadAndDisplayReviews(shopId);
 }
@@ -411,23 +428,23 @@ function updateFilterButtonStates(minRating, sortBy) {
   document.querySelectorAll('.filter-btn').forEach(btn => {
     btn.classList.remove('active');
   });
-  
+
   // Activate the correct rating filter
   if (minRating === 'null') {
     document.querySelector('.filter-btn:first-child').classList.add('active');
   } else {
     const rating = parseInt(minRating);
-    const ratingBtn = Array.from(document.querySelectorAll('.filter-btn')).find(btn => 
+    const ratingBtn = Array.from(document.querySelectorAll('.filter-btn')).find(btn =>
       btn.textContent.includes(`${rating}+`)
     );
     if (ratingBtn) ratingBtn.classList.add('active');
   }
-  
+
   // Update sort buttons
   document.querySelectorAll('.sort-btn').forEach(btn => {
     btn.classList.remove('active');
   });
-  
+
   // Activate the correct sort button
   const sortBtn = Array.from(document.querySelectorAll('.sort-btn')).find(btn => {
     if (sortBy === 'date_new') return btn.textContent === 'Newest';
@@ -442,7 +459,7 @@ async function loadReviewStatistics(shopId) {
   try {
     const response = await fetch(`${API_BASE_URL}/reviews/${shopId}/stats`);
     if (!response.ok) throw new Error('Failed to load statistics');
-    
+
     const stats = await response.json();
     displayReviewStatistics(stats);
   } catch (error) {
@@ -453,12 +470,12 @@ async function loadReviewStatistics(shopId) {
 
 function displayReviewStatistics(stats) {
   const detailsDiv = document.getElementById('shopDetails');
-  
+
   let distributionHTML = '';
   for (let rating = 5; rating >= 1; rating--) {
     const count = stats.distribution[rating] || 0;
     const percentage = stats.total > 0 ? (count / stats.total * 100).toFixed(1) : 0;
-    
+
     distributionHTML += `
       <div style="margin-bottom: 10px;">
         <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
@@ -472,7 +489,7 @@ function displayReviewStatistics(stats) {
       </div>
     `;
   }
-  
+
   const modalContent = `
     <div style="max-height: 80vh; overflow-y: auto;">
       <h3 style="color: #667eea; margin-bottom: 20px;">📊 Review Statistics</h3>
@@ -510,7 +527,7 @@ function displayReviewStatistics(stats) {
       </button>
     </div>
   `;
-  
+
   detailsDiv.innerHTML = modalContent;
 }
 
@@ -525,7 +542,7 @@ function openReviewModal(shopId, shopName) {
   document.getElementById('currentShopId').value = shopId;
   const modal = document.getElementById('reviewModal');
   modal.classList.add('show');
-  
+
   // Reset form
   document.getElementById('reviewForm').reset();
 }
@@ -568,7 +585,7 @@ async function submitReview(e) {
 
     closeReviewModal();
     showError('✓ Review submitted successfully!');
-    
+
     // Reload shops to update ratings
     setTimeout(() => {
       clearError();
@@ -595,7 +612,7 @@ function closeAddShopModal() {
 
 async function submitAddShop(e) {
   e.preventDefault();
-  
+
   const name = document.getElementById('newShopName').value.trim();
   const category = document.getElementById('newShopCategory').value.trim();
   const location = document.getElementById('newShopLocation').value.trim();
@@ -613,22 +630,22 @@ async function submitAddShop(e) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, category, location })
     });
-    
+
     const data = await resp.json();
-    
+
     if (!resp.ok) {
       throw new Error(data.message || 'Failed to add shop');
     }
-    
+
     msg.textContent = '✓ Shop added successfully!';
     msg.style.color = 'green';
-    
+
     // Close modal and reload shops after a delay
     setTimeout(() => {
       closeAddShopModal();
       loadShops();
     }, 1500);
-    
+
   } catch (err) {
     console.error('Error adding shop:', err);
     msg.textContent = 'Failed to add shop. Please try again.';
@@ -696,10 +713,10 @@ function formatDate(dateString) {
   } else if (date.toDateString() === yesterday.toDateString()) {
     return 'Yesterday';
   } else {
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
     });
   }
 }
@@ -707,7 +724,7 @@ function formatDate(dateString) {
 // ============================================
 // MODAL CLOSE ON OUTSIDE CLICK
 // ============================================
-window.onclick = function(event) {
+window.onclick = function (event) {
   const reviewModal = document.getElementById('reviewModal');
   const detailsModal = document.getElementById('detailsModal');
   const addShopModal = document.getElementById('addShopModal');
@@ -758,7 +775,7 @@ async function loadFilters() {
       selectedCategory = category;
       fetchFilteredShops();
     });
-    
+
     renderFilters('locationFilters', locations, (location) => {
       selectedLocation = location;
       fetchFilteredShops();
@@ -776,18 +793,18 @@ async function fetchFilteredShops() {
   clearError();
 
   let url = `${API_BASE_URL}/shops`;
-  
+
   // Build query with BOTH filters
   const params = new URLSearchParams();
-  
+
   if (selectedCategory) {
     params.append('category', selectedCategory);
   }
-  
+
   if (selectedLocation) {
     params.append('location', selectedLocation);
   }
-  
+
   // Always add the query string if we have any filters
   if (params.toString()) {
     url += `?${params.toString()}`;
@@ -796,10 +813,10 @@ async function fetchFilteredShops() {
   try {
     const resp = await fetch(url);
     if (!resp.ok) throw new Error("Failed to fetch shops");
-    
+
     const shops = await resp.json();
     displayShops(shops);
-    
+
   } catch (err) {
     console.error(err);
     showError('Failed to load filtered shops');
@@ -825,14 +842,14 @@ function renderFilters(containerId, items, onClickHandler) {
     [...container.children].forEach(btn => btn.classList.remove('active'));
     // Add active to this button
     allBtn.classList.add('active');
-    
+
     // Clear the appropriate filter
     if (containerId === 'categoryFilters') {
       selectedCategory = "";
     } else if (containerId === 'locationFilters') {
       selectedLocation = "";
     }
-    
+
     // Fetch with updated filters
     fetchFilteredShops();
   };
@@ -851,7 +868,7 @@ function renderFilters(containerId, items, onClickHandler) {
       [...container.children].forEach(btn => btn.classList.remove('active'));
       // Add active to clicked button
       btn.classList.add('active');
-      
+
       // Call the handler with the filter value
       onClickHandler(item);
     };
@@ -864,32 +881,32 @@ function renderFilters(containerId, items, onClickHandler) {
 // ============================================
 function addResetFiltersButton() {
   const searchBox = document.querySelector('.search-box');
-  
+
   const resetBtn = document.createElement('button');
   resetBtn.textContent = 'Reset Filters';
   resetBtn.className = 'reset-btn';
-  
+
   resetBtn.onclick = () => {
     // Reset all filters
     selectedCategory = "";
     selectedLocation = "";
-    
+
     // Reset UI buttons
     document.querySelectorAll('.filter-btn').forEach(btn => {
       btn.classList.remove('active');
     });
-    
+
     // Activate "All" buttons
     document.querySelectorAll('#categoryFilters .filter-btn:first-child, #locationFilters .filter-btn:first-child')
       .forEach(btn => btn.classList.add('active'));
-    
+
     // Clear search input
     document.getElementById('searchInput').value = '';
-    
+
     // Reload all shops
     loadShops();
   };
-  
+
   searchBox.appendChild(resetBtn);
 }
 
@@ -904,13 +921,13 @@ document.addEventListener('DOMContentLoaded', () => {
   if (comparatorBtn) {
     comparatorBtn.addEventListener('click', openComparatorModal);
   }
-  
+
   // Modal compare button
   const modalCompareBtn = document.getElementById('modalCompareBtn');
   if (modalCompareBtn) {
     modalCompareBtn.addEventListener('click', handleModalCompare);
   }
-  
+
   // Load shop suggestions for autocomplete
   loadShopSuggestions();
 });
@@ -929,19 +946,19 @@ async function loadShopSuggestions() {
   try {
     const response = await fetch(`${API_BASE_URL}/shops`);
     if (!response.ok) return;
-    
+
     const shops = await response.json();
     const shopNames = shops.map(shop => shop.name);
-    
+
     // Add to both datalists
     const datalist1 = document.getElementById('shopSuggestions1');
     const datalist2 = document.getElementById('shopSuggestions2');
-    
+
     shopNames.forEach(name => {
       const option1 = document.createElement('option');
       option1.value = name;
       datalist1.appendChild(option1);
-      
+
       const option2 = document.createElement('option');
       option2.value = name;
       datalist2.appendChild(option2);
@@ -955,18 +972,18 @@ async function handleModalCompare() {
   const shop1 = document.getElementById('modalShop1').value.trim();
   const shop2 = document.getElementById('modalShop2').value.trim();
   const resultDiv = document.getElementById('comparatorResult');
-  
+
   // Validation
   if (!shop1 || !shop2) {
     showComparatorResult('❌ Please enter both shop names', 'error');
     return;
   }
-  
+
   if (shop1.toLowerCase() === shop2.toLowerCase()) {
     showComparatorResult('❌ Please select two different shops', 'error');
     return;
   }
-  
+
   // Show loading
   resultDiv.innerHTML = `
     <div class="comparator-loading">
@@ -975,22 +992,22 @@ async function handleModalCompare() {
     </div>
   `;
   resultDiv.style.display = 'block';
-  
+
   try {
     const response = await fetch(
       `${API_BASE_URL}/shops/compare-by-name?shop1=${encodeURIComponent(shop1)}&shop2=${encodeURIComponent(shop2)}`
     );
-    
+
     if (!response.ok) {
       if (response.status === 404) {
         throw new Error('One or both shops not found. Check shop names!');
       }
       throw new Error(`Server error: ${response.status}`);
     }
-    
+
     const data = await response.json();
     displayComparatorResult(data);
-    
+
   } catch (error) {
     showComparatorResult(`❌ ${error.message}`, 'error');
   }
@@ -999,10 +1016,10 @@ async function handleModalCompare() {
 function displayComparatorResult(data) {
   const { shop1, shop2, comparison } = data;
   const resultDiv = document.getElementById('comparatorResult');
-  
+
   const winner = shop1.averageRating > shop2.averageRating ? shop1.name : shop2.name;
   const ratingDiff = Math.abs(shop1.averageRating - shop2.averageRating).toFixed(2);
-  
+
   const html = `
     <div class="comparator-shops">
       <div class="comparator-shop">
@@ -1033,7 +1050,7 @@ function displayComparatorResult(data) {
       🏆 Winner: ${escapeHtml(winner)}
     </div>
   `;
-  
+
   resultDiv.innerHTML = html;
   resultDiv.style.display = 'block';
 }
@@ -1041,7 +1058,7 @@ function displayComparatorResult(data) {
 function showComparatorResult(message, type = 'error') {
   const resultDiv = document.getElementById('comparatorResult');
   const className = type === 'error' ? 'comparator-error' : 'comparator-success';
-  
+
   resultDiv.innerHTML = `
     <div class="${className}">
       ${message}
@@ -1051,7 +1068,7 @@ function showComparatorResult(message, type = 'error') {
 }
 
 // Close modal when clicking outside
-window.onclick = function(event) {
+window.onclick = function (event) {
   const comparatorModal = document.getElementById('comparatorModal');
   if (event.target === comparatorModal) {
     closeComparatorModal();
@@ -1070,13 +1087,13 @@ document.addEventListener('DOMContentLoaded', () => {
   if (comparatorBtn) {
     comparatorBtn.addEventListener('click', openComparatorModal);
   }
-  
+
   // Modal compare button
   const modalCompareBtn = document.getElementById('modalCompareBtn');
   if (modalCompareBtn) {
     modalCompareBtn.addEventListener('click', handleModalCompare);
   }
-  
+
   // Load shop suggestions for autocomplete
   loadShopSuggestions();
 });
@@ -1095,19 +1112,19 @@ async function loadShopSuggestions() {
   try {
     const response = await fetch(`${API_BASE_URL}/shops`);
     if (!response.ok) return;
-    
+
     const shops = await response.json();
     const shopNames = shops.map(shop => shop.name);
-    
+
     // Add to both datalists
     const datalist1 = document.getElementById('shopSuggestions1');
     const datalist2 = document.getElementById('shopSuggestions2');
-    
+
     shopNames.forEach(name => {
       const option1 = document.createElement('option');
       option1.value = name;
       datalist1.appendChild(option1);
-      
+
       const option2 = document.createElement('option');
       option2.value = name;
       datalist2.appendChild(option2);
@@ -1121,18 +1138,18 @@ async function handleModalCompare() {
   const shop1 = document.getElementById('modalShop1').value.trim();
   const shop2 = document.getElementById('modalShop2').value.trim();
   const resultDiv = document.getElementById('comparatorResult');
-  
+
   // Validation
   if (!shop1 || !shop2) {
     showComparatorResult('❌ Please enter both shop names', 'error');
     return;
   }
-  
+
   if (shop1.toLowerCase() === shop2.toLowerCase()) {
     showComparatorResult('❌ Please select two different shops', 'error');
     return;
   }
-  
+
   // Show loading
   resultDiv.innerHTML = `
     <div class="comparator-loading">
@@ -1141,22 +1158,22 @@ async function handleModalCompare() {
     </div>
   `;
   resultDiv.style.display = 'block';
-  
+
   try {
     const response = await fetch(
       `${API_BASE_URL}/shops/compare-by-name?shop1=${encodeURIComponent(shop1)}&shop2=${encodeURIComponent(shop2)}`
     );
-    
+
     if (!response.ok) {
       if (response.status === 404) {
         throw new Error('One or both shops not found. Check shop names!');
       }
       throw new Error(`Server error: ${response.status}`);
     }
-    
+
     const data = await response.json();
     displayComparatorResult(data);
-    
+
   } catch (error) {
     showComparatorResult(`❌ ${error.message}`, 'error');
   }
@@ -1165,10 +1182,10 @@ async function handleModalCompare() {
 function displayComparatorResult(data) {
   const { shop1, shop2, comparison } = data;
   const resultDiv = document.getElementById('comparatorResult');
-  
+
   const winner = shop1.averageRating > shop2.averageRating ? shop1.name : shop2.name;
   const ratingDiff = Math.abs(shop1.averageRating - shop2.averageRating).toFixed(2);
-  
+
   const html = `
     <div class="comparator-shops">
       <div class="comparator-shop">
@@ -1199,7 +1216,7 @@ function displayComparatorResult(data) {
       🏆 Winner: ${escapeHtml(winner)}
     </div>
   `;
-  
+
   resultDiv.innerHTML = html;
   resultDiv.style.display = 'block';
 }
@@ -1207,7 +1224,7 @@ function displayComparatorResult(data) {
 function showComparatorResult(message, type = 'error') {
   const resultDiv = document.getElementById('comparatorResult');
   const className = type === 'error' ? 'comparator-error' : 'comparator-success';
-  
+
   resultDiv.innerHTML = `
     <div class="${className}">
       ${message}
@@ -1217,7 +1234,7 @@ function showComparatorResult(message, type = 'error') {
 }
 
 // Close modal when clicking outside
-window.onclick = function(event) {
+window.onclick = function (event) {
   const comparatorModal = document.getElementById('comparatorModal');
   if (event.target === comparatorModal) {
     closeComparatorModal();
@@ -1243,18 +1260,18 @@ function setupComparator() {
   if (comparatorBtn) {
     comparatorBtn.addEventListener('click', openComparatorModal);
   }
-  
+
   // Modal compare button
   const modalCompareBtn = document.getElementById('modalCompareBtn');
   if (modalCompareBtn) {
     modalCompareBtn.addEventListener('click', handleModalCompare);
   }
-  
+
   // Load shop suggestions for autocomplete
   loadShopSuggestions();
-  
+
   // Close modal when clicking outside
-  window.addEventListener('click', function(event) {
+  window.addEventListener('click', function (event) {
     const comparatorModal = document.getElementById('comparatorModal');
     if (event.target === comparatorModal) {
       closeComparatorModal();
@@ -1263,3 +1280,320 @@ function setupComparator() {
 }
 
 document.addEventListener('DOMContentLoaded', initializeAll);
+
+// ============================================
+// FAVORITES FEATURE
+// ============================================
+
+async function toggleFavorite(shopId) {
+  const sessionId = getSessionId();
+  const favBtn = document.getElementById(`fav-${shopId}`);
+
+  try {
+    // Check if already favorited
+    const checkResp = await fetch(`${API_BASE_URL}/favorites/check/${shopId}?sessionId=${sessionId}`);
+    const checkData = await checkResp.json();
+
+    if (checkData.isFavorited) {
+      // Remove from favorites
+      await fetch(`${API_BASE_URL}/favorites/${shopId}?sessionId=${sessionId}`, {
+        method: 'DELETE'
+      });
+      favBtn.classList.remove('active');
+      favBtn.innerHTML = '🤍';
+    } else {
+      // Add to favorites
+      await fetch(`${API_BASE_URL}/favorites`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shopId, sessionId })
+      });
+      favBtn.classList.add('active');
+      favBtn.innerHTML = '❤️';
+    }
+
+    // Animate the button
+    favBtn.classList.add('pop');
+    setTimeout(() => favBtn.classList.remove('pop'), 300);
+
+    // Update favorites count
+    updateFavoritesCount();
+
+  } catch (error) {
+    console.error('Error toggling favorite:', error);
+  }
+}
+
+async function checkAndUpdateFavoriteButton(shopId) {
+  const sessionId = getSessionId();
+
+  try {
+    const resp = await fetch(`${API_BASE_URL}/favorites/check/${shopId}?sessionId=${sessionId}`);
+    const data = await resp.json();
+
+    const favBtn = document.getElementById(`fav-${shopId}`);
+    if (favBtn && data.isFavorited) {
+      favBtn.classList.add('active');
+      favBtn.innerHTML = '❤️';
+    }
+  } catch (error) {
+    console.error('Error checking favorite:', error);
+  }
+}
+
+async function updateFavoritesCount() {
+  const sessionId = getSessionId();
+
+  try {
+    const resp = await fetch(`${API_BASE_URL}/favorites?sessionId=${sessionId}`);
+    const favorites = await resp.json();
+
+    const countEl = document.getElementById('favCount');
+    if (countEl) {
+      countEl.textContent = favorites.length || 0;
+    }
+  } catch (error) {
+    console.error('Error updating favorites count:', error);
+  }
+}
+
+function openFavoritesModal() {
+  const modal = document.getElementById('favoritesModal');
+  modal.classList.add('show');
+  loadFavorites();
+}
+
+function closeFavoritesModal() {
+  document.getElementById('favoritesModal').classList.remove('show');
+}
+
+async function loadFavorites() {
+  const sessionId = getSessionId();
+  const listEl = document.getElementById('favoritesList');
+
+  try {
+    listEl.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">Loading...</div>';
+
+    const resp = await fetch(`${API_BASE_URL}/favorites?sessionId=${sessionId}`);
+    const favorites = await resp.json();
+
+    if (favorites.length === 0) {
+      listEl.innerHTML = `
+        <div class="empty-favorites">
+          <div class="empty-favorites-icon">💔</div>
+          <p>No favorite shops yet!</p>
+          <p style="font-size: 0.9em; opacity: 0.8;">Click the heart icon on any shop to add it here.</p>
+        </div>
+      `;
+      return;
+    }
+
+    listEl.innerHTML = favorites.map(shop => `
+      <div class="favorite-item" onclick="closeFavoritesModal(); showShopDetails('${shop._id}')">
+        <div class="favorite-item-icon">${shop.name.charAt(0).toUpperCase()}</div>
+        <div class="favorite-item-info">
+          <div class="favorite-item-name">${escapeHtml(shop.name)}</div>
+          <div class="favorite-item-meta">
+            ${escapeHtml(shop.category)} • ${escapeHtml(shop.location)}
+          </div>
+          <div class="favorite-item-rating">
+            ⭐ ${shop.averageRating.toFixed(1)} (${shop.reviewCount} reviews)
+          </div>
+        </div>
+        <button class="remove-favorite-btn" onclick="event.stopPropagation(); removeFavorite('${shop._id}')">
+          Remove
+        </button>
+      </div>
+    `).join('');
+
+  } catch (error) {
+    console.error('Error loading favorites:', error);
+    listEl.innerHTML = '<div style="text-align: center; padding: 20px; color: #dc2626;">Failed to load favorites</div>';
+  }
+}
+
+async function removeFavorite(shopId) {
+  const sessionId = getSessionId();
+
+  try {
+    await fetch(`${API_BASE_URL}/favorites/${shopId}?sessionId=${sessionId}`, {
+      method: 'DELETE'
+    });
+
+    // Update the shop card button if visible
+    const favBtn = document.getElementById(`fav-${shopId}`);
+    if (favBtn) {
+      favBtn.classList.remove('active');
+      favBtn.innerHTML = '🤍';
+    }
+
+    // Reload favorites list and update count
+    loadFavorites();
+    updateFavoritesCount();
+
+  } catch (error) {
+    console.error('Error removing favorite:', error);
+  }
+}
+
+// ============================================
+// PHOTO GALLERY FEATURE
+// ============================================
+
+function createPhotoGallerySection(shopId, photos = []) {
+  return `
+    <div class="photo-gallery-section">
+      <div class="photo-gallery-header">
+        <h4>📸 Photo Gallery</h4>
+        <button class="add-photo-btn" onclick="showAddPhotoForm('${shopId}')">
+          + Add Photo
+        </button>
+      </div>
+      <div id="addPhotoForm-${shopId}" style="display: none; margin-bottom: 15px;">
+        <input type="url" class="photo-url-input" id="photoUrl-${shopId}" 
+               placeholder="Enter image URL (e.g., https://example.com/image.jpg)">
+        <input type="text" class="photo-url-input" id="photoCaption-${shopId}" 
+               placeholder="Optional caption" style="margin-top: 5px;">
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+          <button class="add-photo-btn" onclick="submitPhoto('${shopId}')">Add</button>
+          <button class="add-photo-btn" style="background: #6b7280;" onclick="hideAddPhotoForm('${shopId}')">Cancel</button>
+        </div>
+      </div>
+      <div class="photo-carousel" id="photoCarousel-${shopId}">
+        ${photos.length > 0 ? photos.map((photo, index) => `
+          <div class="photo-item">
+            <img src="${escapeHtml(photo.url)}" alt="${escapeHtml(photo.caption || 'Shop photo')}" 
+                 onerror="this.src='https://via.placeholder.com/150x120?text=Image+Not+Found'">
+            ${photo.caption ? `<div class="photo-item-overlay">${escapeHtml(photo.caption)}</div>` : ''}
+          </div>
+        `).join('') : `
+          <div class="empty-gallery">
+            <div class="empty-gallery-icon">📷</div>
+            <p>No photos yet. Be the first to add one!</p>
+          </div>
+        `}
+      </div>
+    </div>
+  `;
+}
+
+function showAddPhotoForm(shopId) {
+  document.getElementById(`addPhotoForm-${shopId}`).style.display = 'block';
+}
+
+function hideAddPhotoForm(shopId) {
+  document.getElementById(`addPhotoForm-${shopId}`).style.display = 'none';
+  document.getElementById(`photoUrl-${shopId}`).value = '';
+  document.getElementById(`photoCaption-${shopId}`).value = '';
+}
+
+async function submitPhoto(shopId) {
+  const url = document.getElementById(`photoUrl-${shopId}`).value.trim();
+  const caption = document.getElementById(`photoCaption-${shopId}`).value.trim();
+
+  if (!url) {
+    alert('Please enter a valid image URL');
+    return;
+  }
+
+  try {
+    const resp = await fetch(`${API_BASE_URL}/shops/${shopId}/photos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, caption })
+    });
+
+    if (!resp.ok) throw new Error('Failed to add photo');
+
+    const data = await resp.json();
+    hideAddPhotoForm(shopId);
+
+    // Refresh the photo carousel
+    const carousel = document.getElementById(`photoCarousel-${shopId}`);
+    if (carousel && data.photos) {
+      carousel.innerHTML = data.photos.map((photo, index) => `
+        <div class="photo-item">
+          <img src="${escapeHtml(photo.url)}" alt="${escapeHtml(photo.caption || 'Shop photo')}"
+               onerror="this.src='https://via.placeholder.com/150x120?text=Image+Not+Found'">
+          ${photo.caption ? `<div class="photo-item-overlay">${escapeHtml(photo.caption)}</div>` : ''}
+        </div>
+      `).join('');
+    }
+
+  } catch (error) {
+    console.error('Error adding photo:', error);
+    alert('Failed to add photo. Please try again.');
+  }
+}
+
+// ============================================
+// HELPFUL VOTES FEATURE
+// ============================================
+
+function createHelpfulButton(reviewId, helpfulCount = 0, hasVoted = false) {
+  return `
+    <div class="review-footer">
+      <button class="helpful-btn ${hasVoted ? 'active' : ''}" 
+              id="helpful-${reviewId}" 
+              onclick="toggleHelpful('${reviewId}')">
+        <span class="helpful-icon">👍</span>
+        Helpful
+        <span class="helpful-count">${helpfulCount}</span>
+      </button>
+    </div>
+  `;
+}
+
+async function toggleHelpful(reviewId) {
+  const sessionId = getSessionId();
+  const btn = document.getElementById(`helpful-${reviewId}`);
+
+  try {
+    // Check current state
+    const checkResp = await fetch(`${API_BASE_URL}/reviews/${reviewId}/helpful?sessionId=${sessionId}`);
+    const checkData = await checkResp.json();
+
+    if (checkData.hasVoted) {
+      // Remove vote
+      await fetch(`${API_BASE_URL}/reviews/${reviewId}/helpful?sessionId=${sessionId}`, {
+        method: 'DELETE'
+      });
+      btn.classList.remove('active');
+      btn.querySelector('.helpful-count').textContent = checkData.helpfulCount - 1;
+    } else {
+      // Add vote
+      await fetch(`${API_BASE_URL}/reviews/${reviewId}/helpful`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId })
+      });
+      btn.classList.add('active');
+      btn.querySelector('.helpful-count').textContent = checkData.helpfulCount + 1;
+    }
+
+    // Animate
+    btn.classList.add('pop');
+    setTimeout(() => btn.classList.remove('pop'), 400);
+
+  } catch (error) {
+    console.error('Error toggling helpful:', error);
+  }
+}
+
+// ============================================
+// MODAL CLOSE HANDLERS (Updated)
+// ============================================
+
+// Update window.onclick to include favorites modal
+const originalOnClick = window.onclick;
+window.onclick = function (event) {
+  const favoritesModal = document.getElementById('favoritesModal');
+  if (event.target === favoritesModal) {
+    closeFavoritesModal();
+  }
+
+  // Call original handler if exists
+  if (typeof originalOnClick === 'function') {
+    originalOnClick.call(this, event);
+  }
+};

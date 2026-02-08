@@ -28,6 +28,14 @@ router.get('/:id', shopController.getShopById);
 // Create a new shop
 router.post('/', shopController.createShop);
 
-module.exports = router;
+// Add a photo to a shop
+router.post('/:id/photos', shopController.addShopPhoto);
+
+// Get all photos for a shop
+router.get('/:id/photos', shopController.getShopPhotos);
+
+// Delete a photo from a shop
+router.delete('/:id/photos/:photoIndex', shopController.deleteShopPhoto);
 
 module.exports = router;
+

@@ -21,4 +21,14 @@ router.get('/:shopId/filter', reviewController.getReviewsWithFilters);
 // Get review statistics
 router.get('/:shopId/stats', reviewController.getReviewStatistics);
 
+// Mark a review as helpful
+router.post('/:id/helpful', reviewController.markHelpful);
+
+// Check if user voted helpful
+router.get('/:id/helpful', reviewController.checkHelpful);
+
+// Remove helpful vote
+router.delete('/:id/helpful', reviewController.unmarkHelpful);
+
 module.exports = router;
+

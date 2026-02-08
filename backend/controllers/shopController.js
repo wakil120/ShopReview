@@ -38,21 +38,21 @@ exports.getShopStatistics = async (req, res) => {
   try {
     const shops = await Shop.find({});
     const Review = require('../models/Review');
-    
+
     // Calculate overall statistics
     const totalShops = shops.length;
     const totalReviews = shops.reduce((sum, shop) => sum + shop.reviewCount, 0);
-    const averageRatingAll = shops.length > 0 
+    const averageRatingAll = shops.length > 0
       ? (shops.reduce((sum, shop) => sum + shop.averageRating, 0) / shops.length).toFixed(2)
       : 0;
-    
+
     // Get category distribution
     const categoryStats = {};
     shops.forEach(shop => {
       const category = shop.category.toLowerCase();
       categoryStats[category] = (categoryStats[category] || 0) + 1;
     });
-    
+
     // Get top rated shops
     const topRated = [...shops]
       .sort((a, b) => b.averageRating - a.averageRating)
@@ -63,7 +63,7 @@ exports.getShopStatistics = async (req, res) => {
         reviews: shop.reviewCount,
         category: shop.category
       }));
-    
+
     // Get most reviewed shops
     const mostReviewed = [...shops]
       .sort((a, b) => b.reviewCount - a.reviewCount)
@@ -73,15 +73,15 @@ exports.getShopStatistics = async (req, res) => {
         reviews: shop.reviewCount,
         rating: shop.averageRating
       }));
-    
+
     // Get recent reviews (last 7 days)
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    
+
     const recentReviews = await Review.find({
       date: { $gte: oneWeekAgo }
     }).sort({ date: -1 }).limit(10);
-    
+
     res.json({
       summary: {
         totalShops,
@@ -114,23 +114,23 @@ exports.getShopPerformance = async (req, res) => {
   try {
     const { shopId } = req.params;
     const { period = 'month' } = req.query; // month, week, year
-    
+
     const shop = await Shop.findById(shopId);
     if (!shop) {
       return res.status(404).json({ message: 'Shop not found' });
     }
-    
+
     const Review = require('../models/Review');
     const reviews = await Review.find({ shopId }).sort({ date: 1 });
-    
+
     // Group reviews by time period
     const performanceData = {};
     const now = new Date();
-    
+
     reviews.forEach(review => {
       const date = new Date(review.date);
       let periodKey;
-      
+
       if (period === 'week') {
         const weekStart = new Date(date);
         weekStart.setDate(date.getDate() - date.getDay());
@@ -140,7 +140,7 @@ exports.getShopPerformance = async (req, res) => {
       } else {
         periodKey = date.getFullYear();
       }
-      
+
       if (!performanceData[periodKey]) {
         performanceData[periodKey] = {
           total: 0,
@@ -148,7 +148,7 @@ exports.getShopPerformance = async (req, res) => {
           reviews: []
         };
       }
-      
+
       performanceData[periodKey].total += 1;
       performanceData[periodKey].sum += review.rating;
       performanceData[periodKey].reviews.push({
@@ -156,7 +156,7 @@ exports.getShopPerformance = async (req, res) => {
         date: review.date
       });
     });
-    
+
     // Convert to array and calculate averages
     const chartData = Object.entries(performanceData).map(([period, data]) => ({
       period,
@@ -164,7 +164,7 @@ exports.getShopPerformance = async (req, res) => {
       totalReviews: data.total,
       reviews: data.reviews.slice(-3) // Last 3 reviews of the period
     }));
-    
+
     res.json({
       shop: {
         name: shop.name,
@@ -173,7 +173,7 @@ exports.getShopPerformance = async (req, res) => {
       },
       period,
       chartData,
-      trend: chartData.length > 1 
+      trend: chartData.length > 1
         ? chartData[chartData.length - 1].averageRating - chartData[0].averageRating
         : 0
     });
@@ -188,14 +188,14 @@ exports.getShopPerformance = async (req, res) => {
 exports.searchShops = async (req, res) => {
   try {
     const { name } = req.query;
-    
+
     if (!name) {
       return res.status(400).json({ message: 'Name parameter is required' });
     }
 
     // Split the input by spaces to get individual search terms
     const searchTerms = name.trim().split(/\s+/);
-    
+
     // Create regex patterns for each term
     const regexPatterns = searchTerms.map(term => ({
       name: { $regex: term, $options: 'i' }
@@ -297,7 +297,7 @@ exports.compareShopsByName = async (req, res) => {
     const shopOne = await Shop.findOne({
       name: { $regex: shop1, $options: 'i' }
     });
-    
+
     const shopTwo = await Shop.findOne({
       name: { $regex: shop2, $options: 'i' }
     });
@@ -319,3 +319,84 @@ exports.compareShopsByName = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// Add a photo to a shop
+exports.addShopPhoto = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { url, caption } = req.body;
+
+    if (!url) {
+      return res.status(400).json({ message: 'Photo URL is required' });
+    }
+
+    const shop = await Shop.findById(id);
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+
+    // Limit to 10 photos per shop
+    if (shop.photos.length >= 10) {
+      return res.status(400).json({ message: 'Maximum 10 photos allowed per shop' });
+    }
+
+    shop.photos.push({
+      url,
+      caption: caption || '',
+      addedAt: new Date()
+    });
+
+    await shop.save();
+
+    res.status(201).json({
+      message: 'Photo added successfully',
+      photos: shop.photos
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get all photos for a shop
+exports.getShopPhotos = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const shop = await Shop.findById(id);
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+
+    res.json(shop.photos);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Delete a photo from a shop
+exports.deleteShopPhoto = async (req, res) => {
+  try {
+    const { id, photoIndex } = req.params;
+    const index = parseInt(photoIndex);
+
+    const shop = await Shop.findById(id);
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+
+    if (index < 0 || index >= shop.photos.length) {
+      return res.status(400).json({ message: 'Invalid photo index' });
+    }
+
+    shop.photos.splice(index, 1);
+    await shop.save();
+
+    res.json({
+      message: 'Photo deleted successfully',
+      photos: shop.photos
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+

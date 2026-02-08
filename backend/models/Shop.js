@@ -26,6 +26,24 @@ const shopSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  favoriteCount: {
+    type: Number,
+    default: 0
+  },
+  photos: [{
+    url: {
+      type: String,
+      required: true
+    },
+    caption: {
+      type: String,
+      default: ''
+    },
+    addedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   createdAt: {
     type: Date,
     default: Date.now
