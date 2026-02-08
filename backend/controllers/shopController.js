@@ -33,6 +33,155 @@ exports.getAllShops = async (req, res) => {
   }
 };
 
+// Add this new function after getAllShops
+exports.getShopStatistics = async (req, res) => {
+  try {
+    const shops = await Shop.find({});
+    const Review = require('../models/Review');
+    
+    // Calculate overall statistics
+    const totalShops = shops.length;
+    const totalReviews = shops.reduce((sum, shop) => sum + shop.reviewCount, 0);
+    const averageRatingAll = shops.length > 0 
+      ? (shops.reduce((sum, shop) => sum + shop.averageRating, 0) / shops.length).toFixed(2)
+      : 0;
+    
+    // Get category distribution
+    const categoryStats = {};
+    shops.forEach(shop => {
+      const category = shop.category.toLowerCase();
+      categoryStats[category] = (categoryStats[category] || 0) + 1;
+    });
+    
+    // Get top rated shops
+    const topRated = [...shops]
+      .sort((a, b) => b.averageRating - a.averageRating)
+      .slice(0, 5)
+      .map(shop => ({
+        name: shop.name,
+        rating: shop.averageRating,
+        reviews: shop.reviewCount,
+        category: shop.category
+      }));
+    
+    // Get most reviewed shops
+    const mostReviewed = [...shops]
+      .sort((a, b) => b.reviewCount - a.reviewCount)
+      .slice(0, 5)
+      .map(shop => ({
+        name: shop.name,
+        reviews: shop.reviewCount,
+        rating: shop.averageRating
+      }));
+    
+    // Get recent reviews (last 7 days)
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    
+    const recentReviews = await Review.find({
+      date: { $gte: oneWeekAgo }
+    }).sort({ date: -1 }).limit(10);
+    
+    res.json({
+      summary: {
+        totalShops,
+        totalReviews,
+        averageRating: parseFloat(averageRatingAll),
+        averageReviewsPerShop: totalShops > 0 ? (totalReviews / totalShops).toFixed(1) : 0
+      },
+      categories: Object.entries(categoryStats)
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count),
+      topRated,
+      mostReviewed,
+      recentActivity: {
+        recentReviews: recentReviews.length,
+        reviews: recentReviews.map(r => ({
+          shop: shops.find(s => s._id.toString() === r.shopId.toString())?.name || 'Unknown',
+          reviewer: r.reviewer,
+          rating: r.rating,
+          date: r.date
+        }))
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Add this function to get shop performance over time
+exports.getShopPerformance = async (req, res) => {
+  try {
+    const { shopId } = req.params;
+    const { period = 'month' } = req.query; // month, week, year
+    
+    const shop = await Shop.findById(shopId);
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+    
+    const Review = require('../models/Review');
+    const reviews = await Review.find({ shopId }).sort({ date: 1 });
+    
+    // Group reviews by time period
+    const performanceData = {};
+    const now = new Date();
+    
+    reviews.forEach(review => {
+      const date = new Date(review.date);
+      let periodKey;
+      
+      if (period === 'week') {
+        const weekStart = new Date(date);
+        weekStart.setDate(date.getDate() - date.getDay());
+        periodKey = weekStart.toISOString().split('T')[0];
+      } else if (period === 'month') {
+        periodKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      } else {
+        periodKey = date.getFullYear();
+      }
+      
+      if (!performanceData[periodKey]) {
+        performanceData[periodKey] = {
+          total: 0,
+          sum: 0,
+          reviews: []
+        };
+      }
+      
+      performanceData[periodKey].total += 1;
+      performanceData[periodKey].sum += review.rating;
+      performanceData[periodKey].reviews.push({
+        rating: review.rating,
+        date: review.date
+      });
+    });
+    
+    // Convert to array and calculate averages
+    const chartData = Object.entries(performanceData).map(([period, data]) => ({
+      period,
+      averageRating: data.sum / data.total,
+      totalReviews: data.total,
+      reviews: data.reviews.slice(-3) // Last 3 reviews of the period
+    }));
+    
+    res.json({
+      shop: {
+        name: shop.name,
+        currentRating: shop.averageRating,
+        totalReviews: shop.reviewCount
+      },
+      period,
+      chartData,
+      trend: chartData.length > 1 
+        ? chartData[chartData.length - 1].averageRating - chartData[0].averageRating
+        : 0
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 
 // Search shops by name
 // Search shops by name - IMPROVED VERSION

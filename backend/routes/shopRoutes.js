@@ -15,6 +15,13 @@ router.get('/compare-by-name', shopController.compareShopsByName);
 // Compare two shops by ID (MUST be before /:id)
 router.get('/compare', shopController.compareShops);
 
+
+// Get shop statistics
+router.get('/stats/overview', shopController.getShopStatistics);
+
+// Get shop performance over time
+router.get('/:id/performance', shopController.getShopPerformance);
+
 // Get shop by ID (MUST be last because /:id matches everything)
 router.get('/:id', shopController.getShopById);
 

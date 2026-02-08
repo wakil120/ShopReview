@@ -14,4 +14,11 @@ router.get('/single/:id', reviewController.getReviewById);
 // Delete a review
 router.delete('/:id', reviewController.deleteReview);
 
+
+// Get reviews with filtering and sorting
+router.get('/:shopId/filter', reviewController.getReviewsWithFilters);
+
+// Get review statistics
+router.get('/:shopId/stats', reviewController.getReviewStatistics);
+
 module.exports = router;

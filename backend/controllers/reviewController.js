@@ -19,6 +19,78 @@ exports.getReviewsByShop = async (req, res) => {
   }
 };
 
+
+exports.getReviewsWithFilters = async (req, res) => {
+  try {
+    const { shopId } = req.params;
+    const { 
+      minRating, 
+      sortBy, 
+      startDate, 
+      endDate 
+    } = req.query;
+
+    // Check if shop exists
+    const shop = await Shop.findById(shopId);
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+
+    const filters = {};
+    
+    if (minRating) {
+      const rating = parseInt(minRating);
+      if (rating >= 1 && rating <= 5) {
+        filters.minRating = rating;
+      }
+    }
+    
+    if (sortBy && ['rating_high', 'rating_low', 'date_old', 'date_new'].includes(sortBy)) {
+      filters.sortBy = sortBy;
+    }
+    
+    if (startDate) {
+      filters.startDate = startDate;
+    }
+    
+    if (endDate) {
+      filters.endDate = endDate;
+    }
+
+    const reviews = await Review.getReviewsWithFilters(shopId, filters);
+    
+    // Get review statistics
+    const stats = await Review.getReviewStats(shopId);
+    
+    res.json({
+      reviews,
+      filters: {
+        applied: Object.keys(filters).length > 0 ? filters : 'none',
+        available: {
+          sortBy: ['rating_high', 'rating_low', 'date_new', 'date_old'],
+          minRating: [1, 2, 3, 4, 5]
+        }
+      },
+      statistics: stats
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Add after addReview function
+exports.getReviewStatistics = async (req, res) => {
+  try {
+    const { shopId } = req.params;
+    
+    const stats = await Review.getReviewStats(shopId);
+    
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // Add a new review and update shop's average rating
 exports.addReview = async (req, res) => {
   try {

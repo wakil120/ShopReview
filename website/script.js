@@ -180,8 +180,14 @@ function generateStars(rating) {
 }
 
 // ============================================
-// SHOP DETAILS MODAL
+// ENHANCED SHOP DETAILS WITH FILTERS
 // ============================================
+
+let currentReviewFilters = {
+  sortBy: 'date_new',
+  minRating: null
+};
+
 async function showShopDetails(shopId) {
   try {
     // Fetch shop details
@@ -190,34 +196,9 @@ async function showShopDetails(shopId) {
     
     const shop = await shopResp.json();
 
-    // Fetch reviews
-    const reviewsResp = await fetch(`${API_BASE_URL}/reviews/${shopId}`);
-    const reviews = reviewsResp.ok ? await reviewsResp.json() : [];
-
-    // Display modal
+    // Display modal with filter UI
     const detailsDiv = document.getElementById('shopDetails');
     const stars = generateStars(shop.averageRating);
-
-    let reviewsHTML = '';
-    if (reviews.length > 0) {
-      reviewsHTML = `
-        <div class="reviews-container">
-          <h3 style="margin-top: 25px; margin-bottom: 15px;">Reviews</h3>
-          ${reviews.map(review => `
-            <div class="review-item">
-              <div class="review-header">
-                <span class="review-author">${escapeHtml(review.reviewer)}</span>
-                <span class="review-date">${formatDate(review.date)}</span>
-              </div>
-              <div class="review-rating">${'⭐'.repeat(review.rating)} (${review.rating}/5)</div>
-              <p class="review-comment">${escapeHtml(review.comment)}</p>
-            </div>
-          `).join('')}
-        </div>
-      `;
-    } else {
-      reviewsHTML = '<p style="color: #999; margin-top: 20px;">No reviews yet. Be the first to review!</p>';
-    }
 
     detailsDiv.innerHTML = `
       <div>
@@ -230,17 +211,307 @@ async function showShopDetails(shopId) {
           <div>
             <p><strong>Average Rating:</strong> <span style="font-size: 1.3em; color: #f59e0b;">${shop.averageRating.toFixed(1)} ${stars}</span></p>
             <p><strong>Total Reviews:</strong> ${shop.reviewCount}</p>
+            <button onclick="loadReviewStatistics('${shopId}')" style="margin-top: 10px; padding: 8px 15px; background: #f3f4f6; border: none; border-radius: 6px; cursor: pointer;">
+              📊 Show Review Stats
+            </button>
           </div>
         </div>
-        ${reviewsHTML}
+        
+        <!-- Review Filters Section -->
+        <div class="review-filters-section" style="margin-bottom: 20px;">
+          <h3 style="margin-bottom: 15px; color: #374151;">Reviews</h3>
+          
+          <div style="background: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+            <div style="font-weight: 600; margin-bottom: 10px; color: #4b5563;">Filter & Sort Reviews:</div>
+            
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
+              <div>
+                <div style="font-size: 0.9em; margin-bottom: 5px; color: #6b7280;">Filter by Rating:</div>
+                <div style="display: flex; gap: 5px;">
+                  <button class="filter-btn ${!currentReviewFilters.minRating ? 'active' : ''}" 
+                          onclick="applyReviewFilter('${shopId}', null, '${currentReviewFilters.sortBy}')">
+                    All
+                  </button>
+                  ${[5, 4, 3, 2, 1].map(rating => `
+                    <button class="filter-btn ${currentReviewFilters.minRating === rating ? 'active' : ''}"
+                            onclick="applyReviewFilter('${shopId}', ${rating}, '${currentReviewFilters.sortBy}')">
+                      ${rating}+ ⭐
+                    </button>
+                  `).join('')}
+                </div>
+              </div>
+              
+              <div>
+                <div style="font-size: 0.9em; margin-bottom: 5px; color: #6b7280;">Sort by:</div>
+                <div style="display: flex; gap: 5px;">
+                  <button class="sort-btn ${currentReviewFilters.sortBy === 'date_new' ? 'active' : ''}"
+                          onclick="applyReviewFilter('${shopId}', ${currentReviewFilters.minRating || 'null'}, 'date_new')">
+                    Newest
+                  </button>
+                  <button class="sort-btn ${currentReviewFilters.sortBy === 'rating_high' ? 'active' : ''}"
+                          onclick="applyReviewFilter('${shopId}', ${currentReviewFilters.minRating || 'null'}, 'rating_high')">
+                    Highest
+                  </button>
+                  <button class="sort-btn ${currentReviewFilters.sortBy === 'rating_low' ? 'active' : ''}"
+                          onclick="applyReviewFilter('${shopId}', ${currentReviewFilters.minRating || 'null'}, 'rating_low')">
+                    Lowest
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <div id="filterInfo" style="font-size: 0.9em; color: #6b7280; padding: 8px; background: white; border-radius: 4px;">
+              Showing all reviews sorted by newest first
+            </div>
+          </div>
+        </div>
+        
+        <!-- Reviews Container -->
+        <div id="reviewsContainer" style="max-height: 400px; overflow-y: auto; padding-right: 10px;">
+          <div style="text-align: center; padding: 30px; color: #9ca3af;">
+            Loading reviews...
+          </div>
+        </div>
       </div>
     `;
 
+    // Load initial reviews
+    await loadAndDisplayReviews(shopId);
     document.getElementById('detailsModal').classList.add('show');
+    
   } catch (err) {
     console.error('Error fetching shop details:', err);
     showError('Failed to load shop details.');
   }
+}
+
+// ============================================
+// REVIEW FILTERING FUNCTIONS
+// ============================================
+
+async function loadAndDisplayReviews(shopId) {
+  const reviewsContainer = document.getElementById('reviewsContainer');
+  const filterInfo = document.getElementById('filterInfo');
+  
+  try {
+    reviewsContainer.innerHTML = `
+      <div style="text-align: center; padding: 20px; color: #9ca3af;">
+        Loading reviews...
+      </div>
+    `;
+    
+    // Build query parameters
+    const params = new URLSearchParams();
+    
+    if (currentReviewFilters.minRating) {
+      params.append('minRating', currentReviewFilters.minRating);
+    }
+    
+    if (currentReviewFilters.sortBy) {
+      params.append('sortBy', currentReviewFilters.sortBy);
+    }
+    
+    // Update filter info text
+    let filterText = 'Showing ';
+    if (currentReviewFilters.minRating) {
+      filterText += `${currentReviewFilters.minRating}+ star reviews `;
+    } else {
+      filterText += 'all reviews ';
+    }
+    
+    filterText += 'sorted by ';
+    switch(currentReviewFilters.sortBy) {
+      case 'date_new':
+        filterText += 'newest first';
+        break;
+      case 'rating_high':
+        filterText += 'highest rated';
+        break;
+      case 'rating_low':
+        filterText += 'lowest rated';
+        break;
+      case 'date_old':
+        filterText += 'oldest first';
+        break;
+      default:
+        filterText += 'newest first';
+    }
+    
+    filterInfo.textContent = filterText;
+    
+    // Fetch filtered reviews
+    const response = await fetch(
+      `${API_BASE_URL}/reviews/${shopId}/filter?${params.toString()}`
+    );
+    
+    if (!response.ok) throw new Error('Failed to load reviews');
+    
+    const data = await response.json();
+    
+    if (data.reviews.length === 0) {
+      reviewsContainer.innerHTML = `
+        <div style="text-align: center; padding: 40px; color: #9ca3af;">
+          <p style="margin-bottom: 10px;">No reviews found</p>
+          <p style="font-size: 0.9em;">Try changing your filters or be the first to review this shop!</p>
+        </div>
+      `;
+      return;
+    }
+    
+    // Display reviews
+    let reviewsHTML = '';
+    data.reviews.forEach(review => {
+      const reviewDate = new Date(review.date);
+      const formattedDate = reviewDate.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+      
+      reviewsHTML += `
+        <div class="review-item" style="background: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 12px; border-left: 3px solid #667eea;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span style="font-weight: 600; color: #374151;">${escapeHtml(review.reviewer)}</span>
+            <span style="color: #9ca3af; font-size: 0.85em;">${formattedDate}</span>
+          </div>
+          <div style="color: #f59e0b; font-weight: 600; margin-bottom: 8px;">
+            ${'⭐'.repeat(review.rating)} (${review.rating}/5)
+          </div>
+          <p style="color: #4b5563; line-height: 1.4; font-size: 0.9em;">${escapeHtml(review.comment)}</p>
+        </div>
+      `;
+    });
+    
+    reviewsContainer.innerHTML = reviewsHTML;
+    
+  } catch (error) {
+    console.error('Error loading reviews:', error);
+    reviewsContainer.innerHTML = `
+      <div style="text-align: center; padding: 20px; color: #dc2626;">
+        Failed to load reviews. Please try again.
+      </div>
+    `;
+  }
+}
+
+function applyReviewFilter(shopId, minRating, sortBy) {
+  // Update current filters
+  currentReviewFilters.minRating = minRating === 'null' ? null : parseInt(minRating);
+  currentReviewFilters.sortBy = sortBy;
+  
+  // Update button active states
+  updateFilterButtonStates(minRating, sortBy);
+  
+  // Reload reviews with new filters
+  loadAndDisplayReviews(shopId);
+}
+
+function updateFilterButtonStates(minRating, sortBy) {
+  // Update rating filter buttons
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  
+  // Activate the correct rating filter
+  if (minRating === 'null') {
+    document.querySelector('.filter-btn:first-child').classList.add('active');
+  } else {
+    const rating = parseInt(minRating);
+    const ratingBtn = Array.from(document.querySelectorAll('.filter-btn')).find(btn => 
+      btn.textContent.includes(`${rating}+`)
+    );
+    if (ratingBtn) ratingBtn.classList.add('active');
+  }
+  
+  // Update sort buttons
+  document.querySelectorAll('.sort-btn').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  
+  // Activate the correct sort button
+  const sortBtn = Array.from(document.querySelectorAll('.sort-btn')).find(btn => {
+    if (sortBy === 'date_new') return btn.textContent === 'Newest';
+    if (sortBy === 'rating_high') return btn.textContent === 'Highest';
+    if (sortBy === 'rating_low') return btn.textContent === 'Lowest';
+    return false;
+  });
+  if (sortBtn) sortBtn.classList.add('active');
+}
+
+async function loadReviewStatistics(shopId) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/reviews/${shopId}/stats`);
+    if (!response.ok) throw new Error('Failed to load statistics');
+    
+    const stats = await response.json();
+    displayReviewStatistics(stats);
+  } catch (error) {
+    console.error('Error loading statistics:', error);
+    showError('Failed to load review statistics.');
+  }
+}
+
+function displayReviewStatistics(stats) {
+  const detailsDiv = document.getElementById('shopDetails');
+  
+  let distributionHTML = '';
+  for (let rating = 5; rating >= 1; rating--) {
+    const count = stats.distribution[rating] || 0;
+    const percentage = stats.total > 0 ? (count / stats.total * 100).toFixed(1) : 0;
+    
+    distributionHTML += `
+      <div style="margin-bottom: 10px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+          <span style="font-weight: 500; color: #374151;">${rating} ⭐</span>
+          <span style="color: #6b7280;">${count} reviews (${percentage}%)</span>
+        </div>
+        <div style="height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden;">
+          <div style="height: 100%; width: ${percentage}%; 
+                background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 4px;"></div>
+        </div>
+      </div>
+    `;
+  }
+  
+  const modalContent = `
+    <div style="max-height: 80vh; overflow-y: auto;">
+      <h3 style="color: #667eea; margin-bottom: 20px;">📊 Review Statistics</h3>
+      
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 25px;">
+        <div style="background: #f9fafb; padding: 15px; border-radius: 8px; text-align: center;">
+          <div style="font-size: 0.9em; color: #6b7280;">Total Reviews</div>
+          <div style="font-size: 2em; font-weight: 700; color: #667eea;">${stats.total}</div>
+        </div>
+        <div style="background: #f9fafb; padding: 15px; border-radius: 8px; text-align: center;">
+          <div style="font-size: 0.9em; color: #6b7280;">Average Rating</div>
+          <div style="font-size: 2em; font-weight: 700; color: #f59e0b;">${stats.average.toFixed(1)}</div>
+        </div>
+      </div>
+      
+      <h4 style="margin-bottom: 15px; color: #374151;">Rating Distribution</h4>
+      ${distributionHTML}
+      
+      ${stats.recent.length > 0 ? `
+        <h4 style="margin-top: 25px; margin-bottom: 15px; color: #374151;">Recent Reviews</h4>
+        ${stats.recent.map(review => `
+          <div style="background: #f9fafb; padding: 12px; border-radius: 6px; margin-bottom: 10px;">
+            <div style="display: flex; justify-content: space-between;">
+              <span style="font-weight: 600; color: #374151;">${escapeHtml(review.reviewer)}</span>
+              <span style="color: #f59e0b;">${'⭐'.repeat(review.rating)}</span>
+            </div>
+            <p style="color: #6b7280; margin-top: 5px; font-size: 0.9em;">${escapeHtml(review.comment)}</p>
+          </div>
+        `).join('')}
+      ` : ''}
+      
+      <button onclick="showShopDetails('${document.getElementById('currentShopId')?.value || ''}')" 
+              style="margin-top: 20px; padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; width: 100%;">
+        ← Back to Shop Details
+      </button>
+    </div>
+  `;
+  
+  detailsDiv.innerHTML = modalContent;
 }
 
 function closeDetailsModal() {
@@ -405,6 +676,7 @@ function clearError() {
  * Escape HTML special characters
  */
 function escapeHtml(text) {
+  if (!text) return '';
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
