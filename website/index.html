@@ -208,6 +208,19 @@
     </div>
   </div>
 
+  <!-- Logout Confirmation Modal -->
+  <div id="logoutModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeLogoutModal()">&times;</span>
+      <h2>Logout Confirmation</h2>
+      <p>Are you sure you want to log out?</p>
+      <div class="modal-actions">
+        <button onclick="confirmLogout()" class="confirm-btn">Yes</button>
+        <button onclick="closeLogoutModal()" class="cancel-btn">No</button>
+      </div>
+    </div>
+  </div>
+
   <script src="script.js"></script>
 </body>
 

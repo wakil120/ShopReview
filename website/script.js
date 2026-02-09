@@ -22,7 +22,15 @@ function getAuthHeaders() {
   return token ? { 'Authorization': `Bearer ${token}` } : {};
 }
 
-async function logout() {
+function openLogoutModal() {
+  document.getElementById('logoutModal').classList.add('show');
+}
+
+function closeLogoutModal() {
+  document.getElementById('logoutModal').classList.remove('show');
+}
+
+async function confirmLogout() {
   try {
     // Call backend logout endpoint
     await fetch(`${API_BASE_URL}/auth/logout`, {
@@ -35,12 +43,12 @@ async function logout() {
   } catch (error) {
     console.error('Logout error:', error);
   } finally {
-    // Clear local storage and redirect to login
+    // Clear local storage and redirect to main page
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('rememberedEmail');
     localStorage.removeItem('shopReviewSessionId'); // Clear favorites session
-    window.location.href = 'login.html';
+    window.location.href = 'index.html';
   }
 }
 
@@ -102,7 +110,7 @@ function updateAuthSection() {
     authSection.innerHTML = `
       <div class="user-profile">
         <span class="user-name">👤 ${user.username}</span>
-        <button id="logoutBtn" class="logout-header-btn" onclick="logout()">
+        <button id="logoutBtn" class="logout-header-btn" onclick="openLogoutModal()">
           Logout
         </button>
       </div>
@@ -1699,9 +1707,11 @@ function createPhotoGallerySection(shopId, photos = [], mainPhotoIndex = 0) {
     <div class="photo-gallery-section">
       <div class="photo-gallery-header">
         <h4>📸 Photo Gallery</h4>
-        <button class="add-photo-btn" onclick="showAddPhotoForm('${shopId}')">
-          + Add Photo
-        </button>
+        ${isAuthenticated() ? `
+          <button class="add-photo-btn" onclick="showAddPhotoForm('${shopId}')">
+            + Add Photo
+          </button>
+        ` : ''}
       </div>
       <div id="addPhotoForm-${shopId}" style="display: none; margin-bottom: 15px;">
         <input type="file" class="photo-file-input" id="photoFile-${shopId}" accept="image/*">
@@ -1846,6 +1856,12 @@ async function setMainPhoto(shopId, photoIndex) {
 }
 
 function showAddPhotoForm(shopId) {
+  if (!isAuthenticated()) {
+    alert('Please login to add photos to shops');
+    window.location.href = 'login.html';
+    return;
+  }
+
   document.getElementById(`addPhotoForm-${shopId}`).style.display = 'block';
 }
 
@@ -1856,6 +1872,12 @@ function hideAddPhotoForm(shopId) {
 }
 
 async function submitPhoto(shopId) {
+  if (!isAuthenticated()) {
+    alert('Please login to add photos to shops');
+    window.location.href = 'login.html';
+    return;
+  }
+
   const fileInput = document.getElementById(`photoFile-${shopId}`);
   const caption = document.getElementById(`photoCaption-${shopId}`).value.trim();
 
