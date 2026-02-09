@@ -32,7 +32,10 @@ const reviewSchema = new mongoose.Schema({
   date: {
     type: Date,
     default: Date.now
-  }
+  },
+  images: [{
+    type: String  // URLs of images uploaded with the review
+  }]
 });
 
 
@@ -85,7 +88,7 @@ reviewSchema.statics.getReviewStats = async function (shopId) {
 
   return {
     total: reviews.length,
-    average: reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length,
+    average: reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0,
     distribution: ratingDistribution,
     recent: reviews.slice(0, 3).map(r => ({
       reviewer: r.reviewer,

@@ -270,10 +270,25 @@ exports.createShop = async (req, res) => {
   }
 
   try {
+    // Process uploaded photos
+    const photos = [];
+    if (req.files && req.files.length > 0) {
+      req.files.forEach(file => {
+        // Create accessible URL for the image
+        const photoUrl = `http://localhost:3000/uploads/shops/${file.filename}`;
+        photos.push({
+          url: photoUrl,
+          caption: '',
+          addedAt: new Date()
+        });
+      });
+    }
+
     const shop = new Shop({
       name: capitalize(name),         // → "pizza paradise" becomes "Pizza Paradise"
       category: capitalize(category), // → "italian" becomes "Italian"
-      location: capitalize(location)  // → "downtown" becomes "Downtown"
+      location: capitalize(location),  // → "downtown" becomes "Downtown"
+      photos: photos
     });
 
     const savedShop = await shop.save();
@@ -324,10 +339,11 @@ exports.compareShopsByName = async (req, res) => {
 exports.addShopPhoto = async (req, res) => {
   try {
     const { id } = req.params;
-    const { url, caption } = req.body;
+    const { caption } = req.body;
 
-    if (!url) {
-      return res.status(400).json({ message: 'Photo URL is required' });
+    // Check if file was uploaded
+    if (!req.file) {
+      return res.status(400).json({ message: 'Photo file is required' });
     }
 
     const shop = await Shop.findById(id);
@@ -340,8 +356,11 @@ exports.addShopPhoto = async (req, res) => {
       return res.status(400).json({ message: 'Maximum 10 photos allowed per shop' });
     }
 
+    // Create accessible URL for the image
+    const photoUrl = `http://localhost:3000/uploads/shops/${req.file.filename}`;
+
     shop.photos.push({
-      url,
+      url: photoUrl,
       caption: caption || '',
       addedAt: new Date()
     });

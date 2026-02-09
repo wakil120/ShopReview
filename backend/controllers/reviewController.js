@@ -94,6 +94,8 @@ exports.getReviewStatistics = async (req, res) => {
 // Add a new review and update shop's average rating
 exports.addReview = async (req, res) => {
   try {
+    console.log('Request body:', req.body);
+    console.log('Request files:', req.files);
     const { shopId, rating, comment, reviewer } = req.body;
 
     // Validate input
@@ -113,12 +115,23 @@ exports.addReview = async (req, res) => {
       return res.status(404).json({ message: 'Shop not found' });
     }
 
+    // Process uploaded images
+    const images = [];
+    if (req.files && req.files.length > 0) {
+      req.files.forEach(file => {
+        // Create accessible URL for the image
+        const imageUrl = `http://localhost:3000/uploads/reviews/${file.filename}`;
+        images.push(imageUrl);
+      });
+    }
+
     // Create the review
     const review = new Review({
       shopId,
       rating,
       comment,
-      reviewer
+      reviewer,
+      images: images
     });
 
     const savedReview = await review.save();

@@ -2,6 +2,45 @@ const express = require('express');
 const router = express.Router();
 const shopController = require('../controllers/shopController');
 const authMiddleware = require('../middleware/authMiddleware');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+// Ensure shop images directory exists
+const shopImagesDir = path.join(__dirname, '../uploads/shops');
+if (!fs.existsSync(shopImagesDir)) {
+    fs.mkdirSync(shopImagesDir, { recursive: true });
+}
+
+// Multer configuration for shop images
+const shopStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, shopImagesDir);
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const ext = path.extname(file.originalname);
+        cb(null, uniqueSuffix + ext);
+    }
+});
+
+const shopFileFilter = (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|webp/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+
+    if (mimetype && extname) {
+        return cb(null, true);
+    } else {
+        cb(new Error('Only image files are allowed'));
+    }
+};
+
+const shopUpload = multer({
+    storage: shopStorage,
+    fileFilter: shopFileFilter,
+    limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
 
 // GET routes MUST come before /:id route
 // Get all shops
@@ -26,11 +65,11 @@ router.get('/:id/performance', shopController.getShopPerformance);
 // Get shop by ID (MUST be last because /:id matches everything)
 router.get('/:id', shopController.getShopById);
 
-// Create a new shop (protected)
-router.post('/', authMiddleware, shopController.createShop);
+// Create a new shop (protected) with file uploads
+router.post('/', authMiddleware, shopUpload.array('photos', 5), shopController.createShop);
 
-// Add a photo to a shop (protected)
-router.post('/:id/photos', authMiddleware, shopController.addShopPhoto);
+// Add a photo to a shop (protected) with file upload
+router.post('/:id/photos', authMiddleware, shopUpload.single('photo'), shopController.addShopPhoto);
 
 // Get all photos for a shop
 router.get('/:id/photos', shopController.getShopPhotos);

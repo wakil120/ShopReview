@@ -1,10 +1,64 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000; // Changed to 3000 for consistency
+
+// Ensure upload directories exist
+const uploadDir = path.join(__dirname, 'uploads');
+const reviewImagesDir = path.join(uploadDir, 'reviews');
+const shopImagesDir = path.join(uploadDir, 'shops');
+
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+if (!fs.existsSync(reviewImagesDir)) fs.mkdirSync(reviewImagesDir, { recursive: true });
+if (!fs.existsSync(shopImagesDir)) fs.mkdirSync(shopImagesDir, { recursive: true });
+
+// Multer storage configuration
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    // Determine destination based on route
+    if (req.path.includes('reviews')) {
+      cb(null, reviewImagesDir);
+    } else if (req.path.includes('shops')) {
+      cb(null, shopImagesDir);
+    } else {
+      cb(null, uploadDir);
+    }
+  },
+  filename: (req, file, cb) => {
+    // Create unique filename
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, uniqueSuffix + ext);
+  }
+});
+
+// File filter to accept only image files
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = /jpeg|jpg|png|gif|webp/;
+  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+  const mimetype = allowedTypes.test(file.mimetype);
+
+  if (mimetype && extname) {
+    return cb(null, true);
+  } else {
+    cb(new Error('Only image files are allowed'));
+  }
+};
+
+const upload = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
+
+// Serve uploaded files statically
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 const authRoutes = require('./routes/authRoutes');

@@ -81,6 +81,16 @@ document.addEventListener('DOMContentLoaded', () => {
   setupAddShopButton();
   loadFilters();
   updateFavoritesCount();
+  setupImagePreview();
+  setupShopImagePreview();
+
+  // Close details modal when clicking outside
+  const detailsModal = document.getElementById('detailsModal');
+  detailsModal.addEventListener('click', function (event) {
+    if (event.target === detailsModal) {
+      closeDetailsModal();
+    }
+  });
 });
 
 function updateAuthSection() {
@@ -458,6 +468,19 @@ async function loadAndDisplayReviews(shopId) {
         day: 'numeric'
       });
 
+      // Render images if they exist
+      let imagesHTML = '';
+      if (review.images && review.images.length > 0) {
+        imagesHTML = `
+          <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
+            ${review.images.map(imageUrl => `
+              <img src="${escapeHtml(imageUrl)}" alt="Review image" 
+                   style="max-width: 100px; max-height: 100px; border-radius: 4px; object-fit: cover;">
+            `).join('')}
+          </div>
+        `;
+      }
+
       reviewsHTML += `
         <div class="review-item" style="background: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 12px; border-left: 3px solid #667eea;">
           <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
@@ -468,6 +491,7 @@ async function loadAndDisplayReviews(shopId) {
             ${'⭐'.repeat(review.rating)} (${review.rating}/5)
           </div>
           <p style="color: #4b5563; line-height: 1.4; font-size: 0.9em;">${escapeHtml(review.comment)}</p>
+          ${imagesHTML}
         </div>
       `;
     });
@@ -625,6 +649,34 @@ function closeReviewModal() {
   document.getElementById('reviewForm').reset();
 }
 
+// Image preview functionality
+function setupImagePreview() {
+  const fileInput = document.getElementById('reviewImages');
+  const previewContainer = document.getElementById('imagePreview');
+
+  if (fileInput && previewContainer) {
+    fileInput.addEventListener('change', function (e) {
+      previewContainer.innerHTML = '';
+
+      if (e.target.files && e.target.files.length > 0) {
+        Array.from(e.target.files).forEach(file => {
+          const reader = new FileReader();
+          reader.onload = function (event) {
+            const imgPreview = document.createElement('div');
+            imgPreview.className = 'image-preview-item';
+            imgPreview.innerHTML = `
+              <img src="${event.target.result}" alt="${file.name}" style="max-width: 100px; max-height: 100px; border-radius: 4px; object-fit: cover; margin-right: 8px; margin-bottom: 8px;">
+              <span class="image-preview-name">${file.name}</span>
+            `;
+            previewContainer.appendChild(imgPreview);
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+    });
+  }
+}
+
 async function submitReview(e) {
   e.preventDefault();
 
@@ -632,24 +684,31 @@ async function submitReview(e) {
   const reviewer = document.getElementById('reviewerName').value.trim();
   const rating = parseInt(document.getElementById('rating').value);
   const comment = document.getElementById('comment').value.trim();
+  const files = document.getElementById('reviewImages').files;
 
   if (!shopId || !reviewer || !rating || !comment) {
     showError('Please fill in all fields.');
     return;
   }
 
+  // Create FormData to handle file uploads
+  const formData = new FormData();
+  formData.append('shopId', shopId);
+  formData.append('rating', rating);
+  formData.append('comment', comment);
+  formData.append('reviewer', reviewer);
+
+  // Append files to form data
+  if (files.length > 0) {
+    Array.from(files).forEach(file => {
+      formData.append('images', file);
+    });
+  }
+
   try {
     const response = await fetch(`${API_BASE_URL}/reviews`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        shopId,
-        rating,
-        comment,
-        reviewer
-      })
+      body: formData
     });
 
     if (!response.ok) {
@@ -683,6 +742,34 @@ function closeAddShopModal() {
   document.getElementById('addShopModal').style.display = 'none';
 }
 
+// Shop image preview functionality
+function setupShopImagePreview() {
+  const fileInput = document.getElementById('newShopPhotos');
+  const previewContainer = document.getElementById('shopImagePreview');
+
+  if (fileInput && previewContainer) {
+    fileInput.addEventListener('change', function (e) {
+      previewContainer.innerHTML = '';
+
+      if (e.target.files && e.target.files.length > 0) {
+        Array.from(e.target.files).forEach(file => {
+          const reader = new FileReader();
+          reader.onload = function (event) {
+            const imgPreview = document.createElement('div');
+            imgPreview.className = 'image-preview-item';
+            imgPreview.innerHTML = `
+              <img src="${event.target.result}" alt="${file.name}" style="max-width: 100px; max-height: 100px; border-radius: 4px; object-fit: cover; margin-right: 8px; margin-bottom: 8px;">
+              <span class="image-preview-name">${file.name}</span>
+            `;
+            previewContainer.appendChild(imgPreview);
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+    });
+  }
+}
+
 async function submitAddShop(e) {
   e.preventDefault();
 
@@ -695,6 +782,7 @@ async function submitAddShop(e) {
   const name = document.getElementById('newShopName').value.trim();
   const category = document.getElementById('newShopCategory').value.trim();
   const location = document.getElementById('newShopLocation').value.trim();
+  const files = document.getElementById('newShopPhotos').files;
   const msg = document.getElementById('addShopMsg');
 
   if (!name || !category || !location) {
@@ -703,14 +791,26 @@ async function submitAddShop(e) {
     return;
   }
 
+  // Create FormData to handle file uploads
+  const formData = new FormData();
+  formData.append('name', name);
+  formData.append('category', category);
+  formData.append('location', location);
+
+  // Append files to form data
+  if (files.length > 0) {
+    Array.from(files).forEach(file => {
+      formData.append('photos', file);
+    });
+  }
+
   try {
     const resp = await fetch(`${API_BASE_URL}/shops`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
         ...getAuthHeaders()
       },
-      body: JSON.stringify({ name, category, location })
+      body: formData
     });
 
     const data = await resp.json();
@@ -1032,11 +1132,17 @@ async function loadShopSuggestions() {
     const shops = await response.json();
     const shopNames = shops.map(shop => shop.name);
 
-    // Add to both datalists
+    // Add to both datalists (clear existing options first to avoid duplicates)
     const datalist1 = document.getElementById('shopSuggestions1');
     const datalist2 = document.getElementById('shopSuggestions2');
 
-    shopNames.forEach(name => {
+    // Clear existing options
+    datalist1.innerHTML = '';
+    datalist2.innerHTML = '';
+
+    // Add unique options
+    const uniqueNames = [...new Set(shopNames)];
+    uniqueNames.forEach(name => {
       const option1 = document.createElement('option');
       option1.value = name;
       datalist1.appendChild(option1);
@@ -1198,11 +1304,17 @@ async function loadShopSuggestions() {
     const shops = await response.json();
     const shopNames = shops.map(shop => shop.name);
 
-    // Add to both datalists
+    // Add to both datalists (clear existing options first to avoid duplicates)
     const datalist1 = document.getElementById('shopSuggestions1');
     const datalist2 = document.getElementById('shopSuggestions2');
 
-    shopNames.forEach(name => {
+    // Clear existing options
+    datalist1.innerHTML = '';
+    datalist2.innerHTML = '';
+
+    // Add unique options
+    const uniqueNames = [...new Set(shopNames)];
+    uniqueNames.forEach(name => {
       const option1 = document.createElement('option');
       option1.value = name;
       datalist1.appendChild(option1);
