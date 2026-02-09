@@ -46,7 +46,7 @@ exports.register = async (req, res) => {
 
         // Generate JWT token
         const token = jwt.sign(
-            { id: user._id, username: user.username },
+            { id: user._id, username: user.username, role: user.role },
             process.env.JWT_SECRET || 'your-secret-key',
             { expiresIn: '7d' }
         );
@@ -56,6 +56,7 @@ exports.register = async (req, res) => {
             _id: user._id,
             username: user.username,
             email: user.email,
+            role: user.role,
             createdAt: user.createdAt,
             updatedAt: user.updatedAt,
             token
@@ -96,7 +97,7 @@ exports.login = async (req, res) => {
 
         // Generate JWT token
         const token = jwt.sign(
-            { id: user._id, username: user.username },
+            { id: user._id, username: user.username, role: user.role },
             process.env.JWT_SECRET || 'your-secret-key',
             { expiresIn: '7d' }
         );
@@ -106,6 +107,7 @@ exports.login = async (req, res) => {
             _id: user._id,
             username: user.username,
             email: user.email,
+            role: user.role,
             createdAt: user.createdAt,
             updatedAt: user.updatedAt,
             token

@@ -17,6 +17,11 @@ function getUser() {
   return userData ? JSON.parse(userData) : null;
 }
 
+function isAdmin() {
+  const user = getUser();
+  return user && user.role === 'admin';
+}
+
 function getAuthHeaders() {
   const token = localStorage.getItem('token');
   return token ? { 'Authorization': `Bearer ${token}` } : {};
@@ -84,6 +89,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Check authentication status
   updateAuthSection();
 
+  // Hide comparator section for non-logged-in users
+  const comparatorSection = document.getElementById('comparatorSection');
+  if (!isAuthenticated() && comparatorSection) {
+    comparatorSection.style.display = 'none';
+  }
+
   loadShops();
   setupEventListeners();
   setupAddShopButton();
@@ -110,6 +121,7 @@ function updateAuthSection() {
     authSection.innerHTML = `
       <div class="user-profile">
         <span class="user-name">👤 ${user.username}</span>
+        <span class="user-role">(${user.role})</span>
         <button id="logoutBtn" class="logout-header-btn" onclick="openLogoutModal()">
           Logout
         </button>
@@ -153,8 +165,8 @@ function setupEventListeners() {
 function setupAddShopButton() {
   const addShopBtn = document.getElementById('openAddShopModalBtn');
   if (addShopBtn) {
-    // Show button only if user is authenticated
-    if (isAuthenticated()) {
+    // Show button only if user is admin
+    if (isAdmin()) {
       addShopBtn.style.display = 'block';
       addShopBtn.addEventListener('click', openAddShopModal);
     } else {
@@ -275,9 +287,11 @@ function createShopCard(shop) {
       </div>
     </div>
     <div class="shop-card-footer">
-      <button class="btn btn-review" onclick="event.stopPropagation(); openReviewModal('${shop._id}', '${escapeHtml(shop.name)}')">
-        ✍️ Write a Review
-      </button>
+      ${isAuthenticated() ? `
+        <button class="btn btn-review" onclick="event.stopPropagation(); openReviewModal('${shop._id}', '${escapeHtml(shop.name)}')">
+          ✍️ Write a Review
+        </button>
+      ` : ''}
     </div>
   `;
 
@@ -331,9 +345,11 @@ async function showShopDetails(shopId) {
           <div>
             <p><strong>Average Rating:</strong> <span style="font-size: 1.3em; color: #f59e0b;">${shop.averageRating.toFixed(1)} ${stars}</span></p>
             <p><strong>Total Reviews:</strong> ${shop.reviewCount}</p>
-            <button onclick="loadReviewStatistics('${shopId}')" style="margin-top: 10px; padding: 8px 15px; background: #f3f4f6; border: none; border-radius: 6px; cursor: pointer;">
-              📊 Show Review Stats
-            </button>
+            ${isAuthenticated() ? `
+              <button onclick="loadReviewStatistics('${shopId}')" style="margin-top: 10px; padding: 8px 15px; background: #f3f4f6; border: none; border-radius: 6px; cursor: pointer;">
+                📊 Show Review Stats
+              </button>
+            ` : ''}
           </div>
         </div>
 
@@ -1707,7 +1723,7 @@ function createPhotoGallerySection(shopId, photos = [], mainPhotoIndex = 0) {
     <div class="photo-gallery-section">
       <div class="photo-gallery-header">
         <h4>📸 Photo Gallery</h4>
-        ${isAuthenticated() ? `
+        ${isAdmin() ? `
           <button class="add-photo-btn" onclick="showAddPhotoForm('${shopId}')">
             + Add Photo
           </button>
@@ -1780,9 +1796,11 @@ async function setMainPhoto(shopId, photoIndex) {
           <div>
             <p><strong>Average Rating:</strong> <span style="font-size: 1.3em; color: #f59e0b;">${shop.averageRating.toFixed(1)} ${stars}</span></p>
             <p><strong>Total Reviews:</strong> ${shop.reviewCount}</p>
-            <button onclick="loadReviewStatistics('${shopId}')" style="margin-top: 10px; padding: 8px 15px; background: #f3f4f6; border: none; border-radius: 6px; cursor: pointer;">
-              📊 Show Review Stats
-            </button>
+            ${isAuthenticated() ? `
+              <button onclick="loadReviewStatistics('${shopId}')" style="margin-top: 10px; padding: 8px 15px; background: #f3f4f6; border: none; border-radius: 6px; cursor: pointer;">
+                📊 Show Review Stats
+              </button>
+            ` : ''}
           </div>
         </div>
 

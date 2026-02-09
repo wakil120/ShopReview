@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const shopController = require('../controllers/shopController');
 const authMiddleware = require('../middleware/authMiddleware');
+const adminMiddleware = require('../middleware/adminMiddleware');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -63,11 +64,11 @@ router.get('/stats/overview', shopController.getShopStatistics);
 router.get('/:id/performance', shopController.getShopPerformance);
 
 // Get shop by ID (MUST be last because /:id matches everything)
-// Create a new shop (protected) with file uploads
-router.post('/', authMiddleware, shopUpload.array('photos', 5), shopController.createShop);
+// Create a new shop (admin only) with file uploads
+router.post('/', authMiddleware, adminMiddleware, shopUpload.array('photos', 5), shopController.createShop);
 
-// Add a photo to a shop (protected) with file upload
-router.post('/:id/photos', authMiddleware, shopUpload.single('photo'), shopController.addShopPhoto);
+// Add a photo to a shop (admin only) with file upload
+router.post('/:id/photos', authMiddleware, adminMiddleware, shopUpload.single('photo'), shopController.addShopPhoto);
 
 // Get all photos for a shop
 router.get('/:id/photos', shopController.getShopPhotos);
