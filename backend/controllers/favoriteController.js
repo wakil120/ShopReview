@@ -41,17 +41,37 @@ exports.addFavorite = async (req, res) => {
         }
         console.log('Found shop:', shop.name);
 
-        // Check if already favorited
-        const existing = await Favorite.findOne(query);
+        // Check if already favorited with same identifier
+        let existing = await Favorite.findOne(query);
         if (existing) {
             console.log('Shop already favorited');
             return res.status(400).json({ message: 'Shop already in favorites' });
         }
 
-        // Create favorite
-        const favorite = new Favorite(query);
-        await favorite.save();
-        console.log('Created favorite:', favorite);
+        // Check if there's an existing favorite with same shopId but different identifier
+        const existingFavoriteQuery = {
+            shopId,
+            $or: [
+                req.user ? { userId: { $ne: req.user.id }, sessionId: { $exists: true } } :
+                    { sessionId: { $ne: query.sessionId }, userId: { $exists: true } }
+            ]
+        };
+
+        let favorite;
+        existing = await Favorite.findOne(existingFavoriteQuery);
+        if (existing) {
+            // If exists, update it to use current user/session
+            console.log('Existing favorite found, updating...');
+            existing.userId = query.userId;
+            existing.sessionId = query.sessionId;
+            favorite = await existing.save();
+            console.log('Updated favorite:', favorite);
+        } else {
+            // If not exists, create new
+            favorite = new Favorite(query);
+            await favorite.save();
+            console.log('Created favorite:', favorite);
+        }
 
         // Update shop favorite count
         await Shop.findByIdAndUpdate(shopId, { $inc: { favoriteCount: 1 } });
