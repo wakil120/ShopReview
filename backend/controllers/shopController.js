@@ -263,7 +263,7 @@ exports.getShopById = async (req, res) => {
 // Create a new shop
 // Create a new shop
 exports.createShop = async (req, res) => {
-  const { name, category, location } = req.body;
+  const { name, category, location, photos: bodyPhotos } = req.body;
 
   if (!name || !category || !location) {
     return res.status(400).json({ message: 'Name, category, and location are required' });
@@ -272,6 +272,8 @@ exports.createShop = async (req, res) => {
   try {
     // Process uploaded photos
     const photos = [];
+
+    // First, process file uploads
     if (req.files && req.files.length > 0) {
       req.files.forEach(file => {
         // Create accessible URL for the image
@@ -281,6 +283,19 @@ exports.createShop = async (req, res) => {
           caption: '',
           addedAt: new Date()
         });
+      });
+    }
+
+    // Then, add photos from JSON body
+    if (bodyPhotos && Array.isArray(bodyPhotos)) {
+      bodyPhotos.forEach(photo => {
+        if (photo.url) {
+          photos.push({
+            url: photo.url,
+            caption: photo.caption || '',
+            addedAt: new Date()
+          });
+        }
       });
     }
 
@@ -407,11 +422,49 @@ exports.deleteShopPhoto = async (req, res) => {
       return res.status(400).json({ message: 'Invalid photo index' });
     }
 
+    // If deleting the main photo, update the main photo index
+    if (index === shop.mainPhotoIndex) {
+      shop.mainPhotoIndex = 0;
+    } else if (index < shop.mainPhotoIndex) {
+      // If deleting a photo before the main photo, adjust the index
+      shop.mainPhotoIndex -= 1;
+    }
+
     shop.photos.splice(index, 1);
     await shop.save();
 
     res.json({
       message: 'Photo deleted successfully',
+      photos: shop.photos,
+      mainPhotoIndex: shop.mainPhotoIndex
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Set main photo for a shop
+exports.setMainPhoto = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { photoIndex } = req.body;
+
+    const shop = await Shop.findById(id);
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+
+    const index = parseInt(photoIndex);
+    if (index < 0 || index >= shop.photos.length) {
+      return res.status(400).json({ message: 'Invalid photo index' });
+    }
+
+    shop.mainPhotoIndex = index;
+    await shop.save();
+
+    res.json({
+      message: 'Main photo updated successfully',
+      mainPhotoIndex: shop.mainPhotoIndex,
       photos: shop.photos
     });
   } catch (error) {

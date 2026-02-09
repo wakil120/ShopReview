@@ -244,6 +244,18 @@ function createShopCard(shop) {
         <span class="shop-category">${escapeHtml(shop.category)}</span>
         <p class="shop-location">📍 ${escapeHtml(shop.location)}</p>
       </div>
+      ${shop.photos && shop.photos.length > 0 ? `
+        <div class="shop-card-photos">
+          <div class="shop-photo-preview">
+            <img src="${escapeHtml(shop.photos[shop.mainPhotoIndex || 0].url)}" alt="${escapeHtml(shop.name)}" 
+                 onerror="this.src='https://via.placeholder.com/150x100?text=No+Image'"
+                 style="width: 100%; height: 100px; object-fit: cover; border-radius: 4px;">
+          </div>
+          ${shop.photos.length > 1 ? `
+            <div class="photo-count-badge">+${shop.photos.length - 1} more</div>
+          ` : ''}
+        </div>
+      ` : ''}
       <div class="shop-card-body">
         <div class="rating-section">
           <div class="rating-display">${shop.averageRating.toFixed(1)}</div>
@@ -316,6 +328,8 @@ async function showShopDetails(shopId) {
             </button>
           </div>
         </div>
+
+        ${createPhotoGallerySection(shopId, shop.photos, shop.mainPhotoIndex)}
         
         <!-- Review Filters Section -->
         <div class="review-filters-section" style="margin-bottom: 20px;">
@@ -558,14 +572,14 @@ async function loadReviewStatistics(shopId) {
     if (!response.ok) throw new Error('Failed to load statistics');
 
     const stats = await response.json();
-    displayReviewStatistics(stats);
+    displayReviewStatistics(stats, shopId);
   } catch (error) {
     console.error('Error loading statistics:', error);
     showError('Failed to load review statistics.');
   }
 }
 
-function displayReviewStatistics(stats) {
+function displayReviewStatistics(stats, shopId) {
   const detailsDiv = document.getElementById('shopDetails');
 
   let distributionHTML = '';
@@ -618,7 +632,7 @@ function displayReviewStatistics(stats) {
         `).join('')}
       ` : ''}
       
-      <button onclick="showShopDetails('${document.getElementById('currentShopId')?.value || ''}')" 
+      <button onclick="showShopDetails('${shopId}')" 
               style="margin-top: 20px; padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; width: 100%;">
         ← Back to Shop Details
       </button>
@@ -1680,7 +1694,7 @@ async function removeFavorite(shopId) {
 // PHOTO GALLERY FEATURE
 // ============================================
 
-function createPhotoGallerySection(shopId, photos = []) {
+function createPhotoGallerySection(shopId, photos = [], mainPhotoIndex = 0) {
   return `
     <div class="photo-gallery-section">
       <div class="photo-gallery-header">
@@ -1690,8 +1704,7 @@ function createPhotoGallerySection(shopId, photos = []) {
         </button>
       </div>
       <div id="addPhotoForm-${shopId}" style="display: none; margin-bottom: 15px;">
-        <input type="url" class="photo-url-input" id="photoUrl-${shopId}" 
-               placeholder="Enter image URL (e.g., https://example.com/image.jpg)">
+        <input type="file" class="photo-file-input" id="photoFile-${shopId}" accept="image/*">
         <input type="text" class="photo-url-input" id="photoCaption-${shopId}" 
                placeholder="Optional caption" style="margin-top: 5px;">
         <div style="display: flex; gap: 10px; margin-top: 10px;">
@@ -1701,10 +1714,19 @@ function createPhotoGallerySection(shopId, photos = []) {
       </div>
       <div class="photo-carousel" id="photoCarousel-${shopId}">
         ${photos.length > 0 ? photos.map((photo, index) => `
-          <div class="photo-item">
+          <div class="photo-item ${index === mainPhotoIndex ? 'main-photo' : ''}">
             <img src="${escapeHtml(photo.url)}" alt="${escapeHtml(photo.caption || 'Shop photo')}" 
                  onerror="this.src='https://via.placeholder.com/150x120?text=Image+Not+Found'">
             ${photo.caption ? `<div class="photo-item-overlay">${escapeHtml(photo.caption)}</div>` : ''}
+            <div class="photo-item-actions">
+              ${index === mainPhotoIndex ? `
+                <span class="main-photo-badge">Main</span>
+              ` : `
+                <button class="set-main-photo-btn" onclick="setMainPhoto('${shopId}', ${index})">
+                  Set as Main
+                </button>
+              `}
+            </div>
           </div>
         `).join('') : `
           <div class="empty-gallery">
@@ -1717,30 +1739,142 @@ function createPhotoGallerySection(shopId, photos = []) {
   `;
 }
 
+async function setMainPhoto(shopId, photoIndex) {
+  try {
+    const resp = await fetch(`${API_BASE_URL}/shops/${shopId}/main-photo`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders()
+      },
+      body: JSON.stringify({ photoIndex })
+    });
+
+    if (!resp.ok) throw new Error('Failed to set main photo');
+
+    const data = await resp.json();
+
+    // Refresh the photo gallery to show the updated main photo
+    const shopDetails = await fetch(`${API_BASE_URL}/shops/${shopId}`);
+    const shop = await shopDetails.json();
+    const detailsDiv = document.getElementById('shopDetails');
+    const stars = generateStars(shop.averageRating);
+    detailsDiv.innerHTML = `
+      <div>
+        <h2 style="color: #667eea; margin-bottom: 20px;">${escapeHtml(shop.name)}</h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+          <div>
+            <p><strong>Category:</strong> ${escapeHtml(shop.category)}</p>
+            <p><strong>Location:</strong> ${escapeHtml(shop.location)}</p>
+          </div>
+          <div>
+            <p><strong>Average Rating:</strong> <span style="font-size: 1.3em; color: #f59e0b;">${shop.averageRating.toFixed(1)} ${stars}</span></p>
+            <p><strong>Total Reviews:</strong> ${shop.reviewCount}</p>
+            <button onclick="loadReviewStatistics('${shopId}')" style="margin-top: 10px; padding: 8px 15px; background: #f3f4f6; border: none; border-radius: 6px; cursor: pointer;">
+              📊 Show Review Stats
+            </button>
+          </div>
+        </div>
+
+        ${createPhotoGallerySection(shopId, shop.photos, shop.mainPhotoIndex)}
+        
+        <!-- Review Filters Section -->
+        <div class="review-filters-section" style="margin-bottom: 20px;">
+          <h3 style="margin-bottom: 15px; color: #374151;">Reviews</h3>
+          
+          <div style="background: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+            <div style="font-weight: 600; margin-bottom: 10px; color: #4b5563;">Filter & Sort Reviews:</div>
+            
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
+              <div>
+                <div style="font-size: 0.9em; margin-bottom: 5px; color: #6b7280;">Filter by Rating:</div>
+                <div style="display: flex; gap: 5px;">
+                  <button class="filter-btn ${!currentReviewFilters.minRating ? 'active' : ''}" 
+                          onclick="applyReviewFilter('${shopId}', null, '${currentReviewFilters.sortBy}')">
+                    All
+                  </button>
+                  ${[5, 4, 3, 2, 1].map(rating => `
+                    <button class="filter-btn ${currentReviewFilters.minRating === rating ? 'active' : ''}"
+                            onclick="applyReviewFilter('${shopId}', ${rating}, '${currentReviewFilters.sortBy}')">
+                      ${rating}+ ⭐
+                    </button>
+                  `).join('')}
+                </div>
+              </div>
+              
+              <div>
+                <div style="font-size: 0.9em; margin-bottom: 5px; color: #6b7280;">Sort by:</div>
+                <div style="display: flex; gap: 5px;">
+                  <button class="sort-btn ${currentReviewFilters.sortBy === 'date_new' ? 'active' : ''}"
+                          onclick="applyReviewFilter('${shopId}', ${currentReviewFilters.minRating || 'null'}, 'date_new')">
+                    Newest
+                  </button>
+                  <button class="sort-btn ${currentReviewFilters.sortBy === 'rating_high' ? 'active' : ''}"
+                          onclick="applyReviewFilter('${shopId}', ${currentReviewFilters.minRating || 'null'}, 'rating_high')">
+                    Highest
+                  </button>
+                  <button class="sort-btn ${currentReviewFilters.sortBy === 'rating_low' ? 'active' : ''}"
+                          onclick="applyReviewFilter('${shopId}', ${currentReviewFilters.minRating || 'null'}, 'rating_low')">
+                    Lowest
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <div id="filterInfo" style="font-size: 0.9em; color: #6b7280; padding: 8px; background: white; border-radius: 4px;">
+              Showing all reviews sorted by newest first
+            </div>
+          </div>
+        </div>
+        
+        <!-- Reviews Container -->
+        <div id="reviewsContainer" style="max-height: 400px; overflow-y: auto; padding-right: 10px;">
+          <div style="text-align: center; padding: 30px; color: #9ca3af;">
+            Loading reviews...
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Load initial reviews
+    await loadAndDisplayReviews(shopId);
+
+  } catch (error) {
+    console.error('Error setting main photo:', error);
+    alert('Failed to set main photo. Please try again.');
+  }
+}
+
 function showAddPhotoForm(shopId) {
   document.getElementById(`addPhotoForm-${shopId}`).style.display = 'block';
 }
 
 function hideAddPhotoForm(shopId) {
   document.getElementById(`addPhotoForm-${shopId}`).style.display = 'none';
-  document.getElementById(`photoUrl-${shopId}`).value = '';
+  document.getElementById(`photoFile-${shopId}`).value = '';
   document.getElementById(`photoCaption-${shopId}`).value = '';
 }
 
 async function submitPhoto(shopId) {
-  const url = document.getElementById(`photoUrl-${shopId}`).value.trim();
+  const fileInput = document.getElementById(`photoFile-${shopId}`);
   const caption = document.getElementById(`photoCaption-${shopId}`).value.trim();
 
-  if (!url) {
-    alert('Please enter a valid image URL');
+  if (!fileInput.files || fileInput.files.length === 0) {
+    alert('Please select an image file to upload');
     return;
   }
+
+  const formData = new FormData();
+  formData.append('photo', fileInput.files[0]);
+  formData.append('caption', caption);
 
   try {
     const resp = await fetch(`${API_BASE_URL}/shops/${shopId}/photos`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, caption })
+      headers: {
+        ...getAuthHeaders()
+      },
+      body: formData
     });
 
     if (!resp.ok) throw new Error('Failed to add photo');
@@ -1751,11 +1885,24 @@ async function submitPhoto(shopId) {
     // Refresh the photo carousel
     const carousel = document.getElementById(`photoCarousel-${shopId}`);
     if (carousel && data.photos) {
+      // Get the current main photo index from the shop
+      const shopDetails = await fetch(`${API_BASE_URL}/shops/${shopId}`);
+      const shop = await shopDetails.json();
+
       carousel.innerHTML = data.photos.map((photo, index) => `
-        <div class="photo-item">
+        <div class="photo-item ${index === shop.mainPhotoIndex ? 'main-photo' : ''}">
           <img src="${escapeHtml(photo.url)}" alt="${escapeHtml(photo.caption || 'Shop photo')}"
                onerror="this.src='https://via.placeholder.com/150x120?text=Image+Not+Found'">
           ${photo.caption ? `<div class="photo-item-overlay">${escapeHtml(photo.caption)}</div>` : ''}
+          <div class="photo-item-actions">
+            ${index === shop.mainPhotoIndex ? `
+              <span class="main-photo-badge">Main</span>
+            ` : `
+              <button class="set-main-photo-btn" onclick="setMainPhoto('${shopId}', ${index})">
+                Set as Main
+              </button>
+            `}
+          </div>
         </div>
       `).join('');
     }

@@ -30,6 +30,11 @@ const shopSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  mainPhotoIndex: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
   photos: [{
     url: {
       type: String,

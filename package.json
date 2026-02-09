@@ -19,6 +19,7 @@
   },
   "homepage": "https://github.com/wakil120/ShopReview#readme",
   "dependencies": {
-    "axios": "^1.13.5"
+    "axios": "^1.13.5",
+    "node-fetch": "^3.3.2"
   }
 }

@@ -63,8 +63,6 @@ router.get('/stats/overview', shopController.getShopStatistics);
 router.get('/:id/performance', shopController.getShopPerformance);
 
 // Get shop by ID (MUST be last because /:id matches everything)
-router.get('/:id', shopController.getShopById);
-
 // Create a new shop (protected) with file uploads
 router.post('/', authMiddleware, shopUpload.array('photos', 5), shopController.createShop);
 
@@ -76,6 +74,12 @@ router.get('/:id/photos', shopController.getShopPhotos);
 
 // Delete a photo from a shop (protected)
 router.delete('/:id/photos/:photoIndex', authMiddleware, shopController.deleteShopPhoto);
+
+// Set main photo for a shop (protected)
+router.put('/:id/main-photo', authMiddleware, shopController.setMainPhoto);
+
+// Get shop by ID (MUST be last because /:id matches everything)
+router.get('/:id', shopController.getShopById);
 
 module.exports = router;
 
