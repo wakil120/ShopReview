@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const reviewController = require('../controllers/reviewController');
+const authMiddleware = require('../middleware/authMiddleware');
+const adminMiddleware = require('../middleware/adminMiddleware');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -44,14 +46,14 @@ const reviewUpload = multer({
 // Get all reviews for a shop
 router.get('/:shopId', reviewController.getReviewsByShop);
 
-// Add a new review with image uploads
-router.post('/', reviewUpload.array('images', 5), reviewController.addReview);
+// Add a new review with image uploads (authenticated users only)
+router.post('/', authMiddleware, reviewUpload.array('images', 5), reviewController.addReview);
 
 // Get review by ID
 router.get('/single/:id', reviewController.getReviewById);
 
-// Delete a review
-router.delete('/:id', reviewController.deleteReview);
+// Delete a review (admin only)
+router.delete('/:id', authMiddleware, adminMiddleware, reviewController.deleteReview);
 
 
 // Get reviews with filtering and sorting

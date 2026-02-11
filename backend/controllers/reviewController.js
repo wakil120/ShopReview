@@ -96,12 +96,14 @@ exports.addReview = async (req, res) => {
   try {
     console.log('Request body:', req.body);
     console.log('Request files:', req.files);
-    const { shopId, rating, comment, reviewer } = req.body;
+    console.log('Authenticated user:', req.user);
+    const { shopId, rating, comment } = req.body;
+    const reviewer = req.user.username;
 
     // Validate input
-    if (!shopId || !rating || !comment || !reviewer) {
+    if (!shopId || !rating || !comment) {
       return res.status(400).json({
-        message: 'shopId, rating, comment, and reviewer are required'
+        message: 'shopId, rating, and comment are required'
       });
     }
 

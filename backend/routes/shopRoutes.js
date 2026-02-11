@@ -73,11 +73,14 @@ router.post('/:id/photos', authMiddleware, adminMiddleware, shopUpload.single('p
 // Get all photos for a shop
 router.get('/:id/photos', shopController.getShopPhotos);
 
-// Delete a photo from a shop (protected)
-router.delete('/:id/photos/:photoIndex', authMiddleware, shopController.deleteShopPhoto);
+// Delete a photo from a shop (admin only)
+router.delete('/:id/photos/:photoIndex', authMiddleware, adminMiddleware, shopController.deleteShopPhoto);
 
-// Set main photo for a shop (protected)
-router.put('/:id/main-photo', authMiddleware, shopController.setMainPhoto);
+// Delete a shop (admin only)
+router.delete('/:id', authMiddleware, adminMiddleware, shopController.deleteShop);
+
+// Set main photo for a shop (admin only)
+router.put('/:id/main-photo', authMiddleware, adminMiddleware, shopController.setMainPhoto);
 
 // Get shop by ID (MUST be last because /:id matches everything)
 router.get('/:id', shopController.getShopById);

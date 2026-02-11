@@ -286,10 +286,15 @@ function createShopCard(shop) {
         </div>
       </div>
     </div>
-    <div class="shop-card-footer">
+     <div class="shop-card-footer">
       ${isAuthenticated() ? `
         <button class="btn btn-review" onclick="event.stopPropagation(); openReviewModal('${shop._id}', '${escapeHtml(shop.name)}')">
           ✍️ Write a Review
+        </button>
+      ` : ''}
+      ${isAdmin() ? `
+        <button class="btn btn-danger" onclick="event.stopPropagation(); deleteShop('${shop._id}')">
+          🗑️ Delete Shop
         </button>
       ` : ''}
     </div>
@@ -322,7 +327,10 @@ let currentReviewFilters = {
   minRating: null
 };
 
+let currentShopId = null;
+
 async function showShopDetails(shopId) {
+  currentShopId = shopId;
   try {
     // Fetch shop details
     const shopResp = await fetch(`${API_BASE_URL}/shops/${shopId}`);
@@ -530,6 +538,13 @@ async function loadAndDisplayReviews(shopId) {
           </div>
           <p style="color: #4b5563; line-height: 1.4; font-size: 0.9em;">${escapeHtml(review.comment)}</p>
           ${imagesHTML}
+          ${isAdmin() ? `
+            <div style="margin-top: 10px;">
+              <button class="btn btn-danger" onclick="deleteReview('${review._id}')">
+                🗑️ Delete Review
+              </button>
+            </div>
+          ` : ''}
         </div>
       `;
     });
@@ -674,6 +689,12 @@ function closeDetailsModal() {
 // REVIEW MODAL
 // ============================================
 function openReviewModal(shopId, shopName) {
+  // Check if user is authenticated
+  if (!isAuthenticated()) {
+    window.location.href = 'login.html';
+    return;
+  }
+
   document.getElementById('currentShopId').value = shopId;
   const modal = document.getElementById('reviewModal');
   modal.classList.add('show');
@@ -718,13 +739,19 @@ function setupImagePreview() {
 async function submitReview(e) {
   e.preventDefault();
 
+  // Check if user is authenticated
+  if (!isAuthenticated()) {
+    window.location.href = 'login.html';
+    return;
+  }
+
   const shopId = document.getElementById('currentShopId').value;
-  const reviewer = document.getElementById('reviewerName').value.trim();
   const rating = parseInt(document.getElementById('rating').value);
   const comment = document.getElementById('comment').value.trim();
   const files = document.getElementById('reviewImages').files;
+  const user = getUser();
 
-  if (!shopId || !reviewer || !rating || !comment) {
+  if (!shopId || !rating || !comment) {
     showError('Please fill in all fields.');
     return;
   }
@@ -734,7 +761,7 @@ async function submitReview(e) {
   formData.append('shopId', shopId);
   formData.append('rating', rating);
   formData.append('comment', comment);
-  formData.append('reviewer', reviewer);
+  // Reviewer name is taken from logged-in user, not form input
 
   // Append files to form data
   if (files.length > 0) {
@@ -746,6 +773,9 @@ async function submitReview(e) {
   try {
     const response = await fetch(`${API_BASE_URL}/reviews`, {
       method: 'POST',
+      headers: {
+        ...getAuthHeaders()
+      },
       body: formData
     });
 
@@ -1744,15 +1774,20 @@ function createPhotoGallerySection(shopId, photos = [], mainPhotoIndex = 0) {
             <img src="${escapeHtml(photo.url)}" alt="${escapeHtml(photo.caption || 'Shop photo')}" 
                  onerror="this.src='https://via.placeholder.com/150x120?text=Image+Not+Found'">
             ${photo.caption ? `<div class="photo-item-overlay">${escapeHtml(photo.caption)}</div>` : ''}
-            <div class="photo-item-actions">
-              ${index === mainPhotoIndex ? `
-                <span class="main-photo-badge">Main</span>
-              ` : `
-                <button class="set-main-photo-btn" onclick="setMainPhoto('${shopId}', ${index})">
-                  Set as Main
-                </button>
-              `}
-            </div>
+             <div class="photo-item-actions">
+               ${index === mainPhotoIndex ? `
+                 <span class="main-photo-badge">Main</span>
+               ` : isAdmin() ? `
+                 <button class="set-main-photo-btn" onclick="setMainPhoto('${shopId}', ${index})">
+                   Set as Main
+                 </button>
+               ` : ''}
+               ${isAdmin() ? `
+                 <button class="delete-photo-btn" onclick="deleteShopPhoto('${shopId}', ${index})">
+                   🗑️ Delete
+                 </button>
+               ` : ''}
+             </div>
           </div>
         `).join('') : `
           <div class="empty-gallery">
@@ -1922,30 +1957,13 @@ async function submitPhoto(shopId) {
     const data = await resp.json();
     hideAddPhotoForm(shopId);
 
-    // Refresh the photo carousel
-    const carousel = document.getElementById(`photoCarousel-${shopId}`);
-    if (carousel && data.photos) {
-      // Get the current main photo index from the shop
-      const shopDetails = await fetch(`${API_BASE_URL}/shops/${shopId}`);
-      const shop = await shopDetails.json();
+    // Refresh the photo carousel using updatePhotoCarousel function
+    const shopDetails = await fetch(`${API_BASE_URL}/shops/${shopId}`);
+    const shop = await shopDetails.json();
+    updatePhotoCarousel(shopId, shop.photos, shop.mainPhotoIndex);
 
-      carousel.innerHTML = data.photos.map((photo, index) => `
-        <div class="photo-item ${index === shop.mainPhotoIndex ? 'main-photo' : ''}">
-          <img src="${escapeHtml(photo.url)}" alt="${escapeHtml(photo.caption || 'Shop photo')}"
-               onerror="this.src='https://via.placeholder.com/150x120?text=Image+Not+Found'">
-          ${photo.caption ? `<div class="photo-item-overlay">${escapeHtml(photo.caption)}</div>` : ''}
-          <div class="photo-item-actions">
-            ${index === shop.mainPhotoIndex ? `
-              <span class="main-photo-badge">Main</span>
-            ` : `
-              <button class="set-main-photo-btn" onclick="setMainPhoto('${shopId}', ${index})">
-                Set as Main
-              </button>
-            `}
-          </div>
-        </div>
-      `).join('');
-    }
+    // Refresh the shops list to update the shop card
+    loadShops();
 
   } catch (error) {
     console.error('Error adding photo:', error);
@@ -2012,11 +2030,162 @@ async function toggleHelpful(reviewId) {
 // ============================================
 
 // Update window.onclick to include favorites modal
+// Delete confirmation modal variables
+let deleteCallback = null;
+
+// Open delete confirmation modal
+function openDeleteModal(title, message, callback) {
+  const modal = document.getElementById('deleteModal');
+  const modalTitle = document.getElementById('deleteModalTitle');
+  const modalMessage = document.getElementById('deleteModalMessage');
+
+  modalTitle.textContent = title;
+  modalMessage.textContent = message;
+  deleteCallback = callback;
+  modal.classList.add('show');
+}
+
+// Close delete confirmation modal
+function closeDeleteModal() {
+  const modal = document.getElementById('deleteModal');
+  modal.classList.remove('show');
+  deleteCallback = null;
+}
+
+// Confirm delete
+function confirmDelete() {
+  if (deleteCallback) {
+    deleteCallback();
+  }
+  closeDeleteModal();
+}
+
+// Delete a shop
+async function deleteShop(shopId) {
+  openDeleteModal(
+    'Delete Shop',
+    'Are you sure you want to delete this shop? All reviews and photos will be deleted permanently.',
+    async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/shops/${shopId}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders()
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to delete shop');
+        }
+
+        // Refresh the shops list
+        loadShops();
+      } catch (error) {
+        console.error('Error deleting shop:', error);
+        alert('Failed to delete shop. Please try again.');
+      }
+    }
+  );
+}
+
+// Delete a review
+async function deleteReview(reviewId) {
+  openDeleteModal(
+    'Delete Review',
+    'Are you sure you want to delete this review?',
+    async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/reviews/${reviewId}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders()
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to delete review');
+        }
+
+        const data = await response.json();
+
+        // Refresh the reviews
+        loadAndDisplayReviews(currentShopId);
+
+        // Refresh the shop card with updated data
+        loadShops();
+      } catch (error) {
+        console.error('Error deleting review:', error);
+        alert('Failed to delete review. Please try again.');
+      }
+    }
+  );
+}
+
+// Delete a shop photo
+async function deleteShopPhoto(shopId, photoIndex) {
+  openDeleteModal(
+    'Delete Photo',
+    'Are you sure you want to delete this photo?',
+    async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/shops/${shopId}/photos/${photoIndex}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders()
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to delete photo');
+        }
+
+        // Refresh the photos
+        const shopDetails = await fetch(`${API_BASE_URL}/shops/${shopId}`);
+        const shop = await shopDetails.json();
+        updatePhotoCarousel(shopId, shop.photos, shop.mainPhotoIndex);
+
+        // Refresh the shops list to update the shop card
+        loadShops();
+      } catch (error) {
+        console.error('Error deleting photo:', error);
+        alert('Failed to delete photo. Please try again.');
+      }
+    }
+  );
+}
+
+// Update photo carousel
+function updatePhotoCarousel(shopId, photos, mainPhotoIndex) {
+  const carousel = document.getElementById(`photoCarousel-${shopId}`);
+  if (!carousel) return;
+
+  carousel.innerHTML = photos.map((photo, index) => `
+    <div class="photo-item ${index === mainPhotoIndex ? 'main-photo' : ''}">
+      <img src="${escapeHtml(photo.url)}" alt="${escapeHtml(photo.caption || 'Shop photo')}"
+           onerror="this.src='https://via.placeholder.com/150x120?text=Image+Not+Found'">
+      ${photo.caption ? `<div class="photo-item-overlay">${escapeHtml(photo.caption)}</div>` : ''}
+      <div class="photo-item-actions">
+        ${index === mainPhotoIndex ? `
+          <span class="main-photo-badge">Main</span>
+        ` : isAdmin() ? `
+          <button class="set-main-photo-btn" onclick="setMainPhoto('${shopId}', ${index})">
+            Set as Main
+          </button>
+        ` : ''}
+        ${isAdmin() ? `
+          <button class="delete-photo-btn" onclick="deleteShopPhoto('${shopId}', ${index})">
+            🗑️ Delete
+          </button>
+        ` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
 const originalOnClick = window.onclick;
 window.onclick = function (event) {
   const favoritesModal = document.getElementById('favoritesModal');
   if (event.target === favoritesModal) {
     closeFavoritesModal();
+  }
+
+  const deleteModal = document.getElementById('deleteModal');
+  if (event.target === deleteModal) {
+    closeDeleteModal();
   }
 
   // Call original handler if exists

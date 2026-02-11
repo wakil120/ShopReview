@@ -472,3 +472,26 @@ exports.setMainPhoto = async (req, res) => {
   }
 };
 
+// Delete a shop
+exports.deleteShop = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const shop = await Shop.findById(id);
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+
+    // Delete all reviews associated with this shop
+    const Review = require('../models/Review');
+    await Review.deleteMany({ shopId: id });
+
+    // Delete the shop
+    await Shop.findByIdAndDelete(id);
+
+    res.json({ message: 'Shop and associated reviews deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
