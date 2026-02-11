@@ -39,32 +39,38 @@ The system is built with a **centralized REST API backend** that serves multiple
 
 ## Backend Architecture
 
+## Backend Architecture
+
 ### Directory Structure
 ```
 backend/
 ├── models/              # Data models (Mongoose schemas)
-│   ├── Shop.js         # Shop entity definition
-│   └── Review.js       # Review entity definition
+│   ├── Shop.js         # Shop entity with images
+│   ├── Review.js       # Review entity with images
+│   ├── User.js         # User authentication model
+│   └── Favorite.js     # User favorites model
 │
 ├── controllers/         # Business logic
-│   ├── shopController.js
-│   │   ├── getAllShops()
-│   │   ├── searchShops()
-│   │   ├── compareShops()
-│   │   ├── getShopById()
-│   │   └── createShop()
-│   │
-│   └── reviewController.js
-│       ├── getReviewsByShop()
-│       ├── addReview()
-│       ├── getReviewById()
-│       └── deleteReview()
+│   ├── shopController.js     # Shop CRUD + image uploads
+│   ├── reviewController.js   # Review CRUD + image uploads
+│   ├── authController.js     # User authentication
+│   └── favoriteController.js # Favorites management
+│
+├── middleware/          # Express middleware
+│   ├── authMiddleware.js     # JWT validation
+│   └── adminMiddleware.js    # Admin role check
 │
 ├── routes/              # API endpoint definitions
 │   ├── shopRoutes.js
-│   └── reviewRoutes.js
+│   ├── reviewRoutes.js
+│   ├── authRoutes.js         # NEW: User auth endpoints
+│   └── favoriteRoutes.js     # NEW: Favorites endpoints
 │
-└── server.js            # Express app setup & initialization
+├── uploads/             # NEW: Directory for uploaded files
+│   ├── shops/          # Shop images
+│   └── reviews/        # Review images
+│
+└── server.js            # Express app setup with multer config
 ```
 
 ### Data Models
@@ -76,9 +82,11 @@ backend/
   name: String (required)
   category: String (required)
   location: String (required)
+  shopImage: String (image URL from uploads)
   averageRating: Number (default: 0, min: 0, max: 5)
   reviewCount: Number (default: 0)
   createdAt: Date (auto-generated)
+  updatedAt: Date
 }
 ```
 
@@ -87,10 +95,33 @@ backend/
 {
   _id: ObjectId (auto-generated)
   shopId: ObjectId (references Shop, required)
+  userId: ObjectId (references User, required)
   rating: Number (required, 1-5)
   comment: String (required)
-  reviewer: String (required)
+  images: [String] (array of image URLs)
   date: Date (auto-generated)
+}
+```
+
+#### User Model
+```
+{
+  _id: ObjectId (auto-generated)
+  username: String (required, unique)
+  email: String (required, unique)
+  password: String (hashed with bcryptjs, required)
+  role: String (user or admin, default: "user")
+  createdAt: Date (auto-generated)
+}
+```
+
+#### Favorite Model
+```
+{
+  _id: ObjectId (auto-generated)
+  userId: ObjectId (references User, required)
+  shopId: ObjectId (references Shop, required)
+  addedAt: Date (auto-generated)
 }
 ```
 
@@ -103,15 +134,30 @@ backend/
 | GET | `/api/shops/:id` | Get shop by ID |
 | GET | `/api/shops/search?name=xxx` | Search shops by name |
 | GET | `/api/shops/compare?shop1=id&shop2=id` | Compare two shops |
-| POST | `/api/shops` | Create new shop |
+| POST | `/api/shops` | Create new shop (with image upload) |
+| PUT | `/api/shops/:id` | Update shop (with image upload) |
 
 #### Review Endpoints
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/reviews/:shopId` | Get all reviews for a shop |
 | GET | `/api/reviews/single/:id` | Get review by ID |
-| POST | `/api/reviews` | Add new review (updates shop rating) |
+| POST | `/api/reviews` | Add new review with images (updates shop rating) |
 | DELETE | `/api/reviews/:id` | Delete review (updates shop rating) |
+
+#### Authentication Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | Register new user |
+| POST | `/api/auth/login` | Login and get JWT token |
+| POST | `/api/auth/validate` | Validate JWT token |
+
+#### Favorites Endpoints (Protected)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/favorites/add` | Add shop to favorites |
+| DELETE | `/api/favorites/remove` | Remove shop from favorites |
+| GET | `/api/favorites/list` | Get user's favorite shops |
 
 ### Request/Response Examples
 

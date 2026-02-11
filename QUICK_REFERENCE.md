@@ -49,14 +49,16 @@ Choose your path:
 
 ## 🎯 What's Included
 
-### Backend (Node.js + Express + MongoDB)
+### Backend (Node.js + Express + MongoDB + JWT + Multer)
 ```
-✅ 9 files
-✅ 600+ lines of code
-✅ RESTful API (10+ endpoints)
-✅ Database integration
+✅ 13 files
+✅ 800+ lines of code
+✅ RESTful API (15+ endpoints)
+✅ Database integration with 4 models
+✅ User authentication (JWT)
+✅ File upload handling (images)
 ✅ Automatic rating calculation
-✅ Search & comparison features
+✅ User favorites system
 ```
 
 ### Website (HTML + CSS + JavaScript)
@@ -108,15 +110,30 @@ GET    /api/shops                              Get all
 GET    /api/shops/:id                          Get one
 GET    /api/shops/search?name=xxx              Search
 GET    /api/shops/compare?shop1=id&shop2=id    Compare
-POST   /api/shops                              Create
+POST   /api/shops                              Create (with image)
+PUT    /api/shops/:id                          Update (with image)
 ```
 
 ### Reviews
 ```
 GET    /api/reviews/:shopId                    Get all
-POST   /api/reviews                            Add (updates rating)
+POST   /api/reviews                            Add (with images)
 GET    /api/reviews/single/:id                 Get one
-DELETE /api/reviews/:id                        Delete (recalculates)
+DELETE /api/reviews/:id                        Delete
+```
+
+### Authentication
+```
+POST   /api/auth/register                      Register
+POST   /api/auth/login                         Login
+POST   /api/auth/validate                      Validate
+```
+
+### Favorites (Protected)
+```
+POST   /api/favorites/add                      Add favorite
+DELETE /api/favorites/remove                   Remove favorite
+GET    /api/favorites/list                     Get favorites
 ```
 
 ---
@@ -129,6 +146,7 @@ DELETE /api/reviews/:id                        Delete (recalculates)
   "name": "String",
   "category": "String",
   "location": "String",
+  "shopImage": "String",
   "averageRating": "Number (0-5)",
   "reviewCount": "Number",
   "createdAt": "Date"
@@ -139,10 +157,31 @@ DELETE /api/reviews/:id                        Delete (recalculates)
 ```json
 {
   "shopId": "ObjectId",
+  "userId": "ObjectId",
   "rating": "Number (1-5)",
   "comment": "String",
-  "reviewer": "String",
+  "images": ["String"],
   "date": "Date"
+}
+```
+
+### Users
+```json
+{
+  "username": "String",
+  "email": "String",
+  "password": "String (hashed)",
+  "role": "String (user/admin)",
+  "createdAt": "Date"
+}
+```
+
+### Favorites
+```json
+{
+  "userId": "ObjectId",
+  "shopId": "ObjectId",
+  "addedAt": "Date"
 }
 ```
 
@@ -152,12 +191,12 @@ DELETE /api/reviews/:id                        Delete (recalculates)
 
 | Component | Files | Lines | Status |
 |-----------|-------|-------|--------|
-| Backend | 9 | 600+ | ✅ Complete |
-| Website | 4 | 800+ | ✅ Complete |
+| Backend | 13 | 800+ | ✅ Complete |
+| Website | 3 | 800+ | ✅ Complete |
 | Flutter | 2 | 300+ | ✅ Complete |
 | Extension | 3 | 300+ | ✅ Complete |
-| Documentation | 7 | 1500+ | ✅ Complete |
-| **Total** | **25** | **2800+** | **✅ COMPLETE** |
+| Documentation | 7 | 1000+ | ✅ Complete |
+| **Total** | **28** | **3,250+** | **✅ COMPLETE** |
 
 ---
 

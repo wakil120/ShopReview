@@ -1,6 +1,6 @@
 # 🏪 ShopReview - Full Stack Shop Review System
 
-A complete, production-ready full-stack application where users can view shops, search them, see average ratings, view reviews, and add their own reviews. Built with Node.js, Express, MongoDB, React-like vanilla JavaScript, Flutter, and Chrome Extension.
+A complete, production-ready full-stack application where users can view shops, search them, see average ratings, view reviews, add their own reviews with images, and manage favorites. Built with Node.js, Express, MongoDB, React-like vanilla JavaScript, Flutter, and Chrome Extension. Features user authentication, file uploads, and JWT-based security.
 
 ## 📦 Project Structure
 
@@ -8,15 +8,25 @@ A complete, production-ready full-stack application where users can view shops, 
 ShopReview/
 ├── backend/                    # Node.js + Express API
 │   ├── models/
-│   │   ├── Shop.js            # Shop schema with ratings
-│   │   └── Review.js          # Review schema
+│   │   ├── Shop.js            # Shop schema with images
+│   │   ├── Review.js          # Review schema with images
+│   │   ├── User.js            # User authentication model
+│   │   └── Favorite.js        # User favorites model
 │   ├── controllers/
-│   │   ├── shopController.js  # Shop CRUD operations
-│   │   └── reviewController.js# Review CRUD operations
+│   │   ├── shopController.js  # Shop CRUD + image uploads
+│   │   ├── reviewController.js# Review CRUD + image uploads
+│   │   ├── authController.js  # User authentication
+│   │   └── favoriteController.js # Favorites management
+│   ├── middleware/
+│   │   ├── authMiddleware.js  # JWT validation
+│   │   └── adminMiddleware.js # Admin role check
 │   ├── routes/
 │   │   ├── shopRoutes.js      # Shop API endpoints
-│   │   └── reviewRoutes.js    # Review API endpoints
-│   ├── server.js              # Express server setup
+│   │   ├── reviewRoutes.js    # Review API endpoints
+│   │   ├── authRoutes.js      # Auth endpoints
+│   │   └── favoriteRoutes.js  # Favorites endpoints
+│   ├── uploads/               # File upload directories
+│   ├── server.js              # Express server with multer
 │   └── package.json           # Dependencies
 │
 ├── website/                    # Pure HTML/CSS/JavaScript frontend
@@ -192,6 +202,9 @@ The backend automatically initializes 5 sample shops with reviews:
 - **MongoDB** - NoSQL database
 - **Mongoose** - ODM for MongoDB
 - **CORS** - Cross-origin support
+- **JWT (jsonwebtoken)** - User authentication
+- **bcryptjs** - Password hashing
+- **Multer** - File upload handling
 
 ### Frontend (Website)
 - **HTML5** - Structure
@@ -206,6 +219,27 @@ The backend automatically initializes 5 sample shops with reviews:
 - **Chrome Extensions API** - Browser extension framework
 
 ## 📋 API Request/Response Examples
+
+### Register User
+```bash
+curl -X POST http://localhost:3000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "john_doe",
+    "email": "john@example.com",
+    "password": "secure_password123"
+  }'
+```
+
+### Login
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "john_doe",
+    "password": "secure_password123"
+  }'
+```
 
 ### Get All Shops
 ```bash
@@ -222,15 +256,26 @@ curl "http://localhost:3000/api/shops/search?name=pizza"
 curl "http://localhost:3000/api/shops/compare?shop1=<id1>&shop2=<id2>"
 ```
 
-### Add Review
+### Add Review (with Authentication)
 ```bash
 curl -X POST http://localhost:3000/api/reviews \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <JWT_TOKEN>" \
   -d '{
     "shopId": "<shop_id>",
     "rating": 4,
     "comment": "Great food!",
-    "reviewer": "John Doe"
+    "images": []
+  }'
+```
+
+### Add to Favorites (Protected)
+```bash
+curl -X POST http://localhost:3000/api/favorites/add \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <JWT_TOKEN>" \
+  -d '{
+    "shopId": "<shop_id>"
   }'
 ```
 
@@ -271,22 +316,28 @@ This is a demonstration project. For production:
 ## 📚 Key Features
 
 ### Backend
-- ✅ RESTful API design
+- ✅ RESTful API design with 15+ endpoints
 - ✅ Automatic average rating calculation
 - ✅ Review count tracking
 - ✅ Case-insensitive search
 - ✅ Shop comparison logic
+- ✅ User authentication with JWT
+- ✅ Password hashing (bcryptjs)
+- ✅ File upload handling (images)
+- ✅ User favorites/bookmarking system
 - ✅ Error handling middleware
-- ✅ Automatic sample data initialization
+- ✅ Admin role support
 
 ### Website
 - ✅ Real-time search
-- ✅ Modal forms for reviews
+- ✅ Modal forms for reviews (with image upload)
 - ✅ Shop detail view with reviews
 - ✅ Loading states and error messages
 - ✅ Professional UI/UX design
 - ✅ HTML escaping for security
 - ✅ Date formatting for reviews
+- ✅ User authentication UI
+- ✅ Favorites management UI
 
 ### Flutter App
 - ✅ Network requests with error handling
