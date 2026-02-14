@@ -52,8 +52,11 @@ router.post('/', authMiddleware, reviewUpload.array('images', 5), reviewControll
 // Get review by ID
 router.get('/single/:id', reviewController.getReviewById);
 
-// Delete a review (admin only)
-router.delete('/:id', authMiddleware, adminMiddleware, reviewController.deleteReview);
+// Edit a review (authenticated users can edit their own reviews)
+router.put('/:id', authMiddleware, reviewController.editReview);
+
+// Delete a review (authenticated users can delete their own reviews)
+router.delete('/:id', authMiddleware, reviewController.deleteReview);
 
 
 // Get reviews with filtering and sorting

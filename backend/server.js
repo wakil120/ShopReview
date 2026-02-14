@@ -124,6 +124,7 @@ app.use((err, req, res, next) => {
 async function initializeData() {
   const Shop = require('./models/shop');
   const Review = require('./models/Review');
+  const User = require('./models/User');
 
   try {
     // Define the sample shops with corrected categories
@@ -141,13 +142,27 @@ async function initializeData() {
     // Insert updated sample shops
     const shops = await Shop.insertMany(sampleShops);
 
+    // Create a test user for sample reviews
+    let testUser = await User.findOne({ username: 'testuser' });
+    if (!testUser) {
+      const bcrypt = require('bcryptjs');
+      const hashedPassword = await bcrypt.hash('testpassword123', 12);
+      testUser = new User({
+        username: 'testuser',
+        email: 'test@example.com',
+        password: hashedPassword,
+        role: 'user'
+      });
+      await testUser.save();
+    }
+
     // Add sample reviews
     const sampleReviews = [
-      { shopId: shops[0]._id, rating: 5, comment: 'Best pizza in town!', reviewer: 'John Doe' },
-      { shopId: shops[0]._id, rating: 4, comment: 'Great taste, bit pricey', reviewer: 'Jane Smith' },
-      { shopId: shops[1]._id, rating: 5, comment: 'Fresh and delicious', reviewer: 'Mike Johnson' },
-      { shopId: shops[2]._id, rating: 3, comment: 'Average quality', reviewer: 'Sarah Lee' },
-      { shopId: shops[3]._id, rating: 4, comment: 'Authentic Thai food', reviewer: 'Tom Wilson' },
+      { shopId: shops[0]._id, rating: 5, comment: 'Best pizza in town!', reviewer: 'John Doe', userId: testUser._id },
+      { shopId: shops[0]._id, rating: 4, comment: 'Great taste, bit pricey', reviewer: 'Jane Smith', userId: testUser._id },
+      { shopId: shops[1]._id, rating: 5, comment: 'Fresh and delicious', reviewer: 'Mike Johnson', userId: testUser._id },
+      { shopId: shops[2]._id, rating: 3, comment: 'Average quality', reviewer: 'Sarah Lee', userId: testUser._id },
+      { shopId: shops[3]._id, rating: 4, comment: 'Authentic Thai food', reviewer: 'Tom Wilson', userId: testUser._id },
     ];
 
     await Review.insertMany(sampleReviews);

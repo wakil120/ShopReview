@@ -22,6 +22,11 @@ const reviewSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
   helpfulCount: {
     type: Number,
     default: 0

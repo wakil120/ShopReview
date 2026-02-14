@@ -527,6 +527,15 @@ async function loadAndDisplayReviews(shopId) {
         `;
       }
 
+      // Debug log
+      console.log('=== Review Debug ===');
+      console.log('Review ID:', review._id);
+      console.log('Review userId:', review.userId);
+      console.log('Current user:', getUser());
+      console.log('User ID:', getUser()?._id);
+      console.log('User ID string:', getUser()?._id?.toString());
+      console.log('Match:', review.userId === getUser()?._id?.toString());
+
       reviewsHTML += `
         <div class="review-item" style="background: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 12px; border-left: 3px solid #667eea;">
           <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
@@ -538,8 +547,11 @@ async function loadAndDisplayReviews(shopId) {
           </div>
           <p style="color: #4b5563; line-height: 1.4; font-size: 0.9em;">${escapeHtml(review.comment)}</p>
           ${imagesHTML}
-          ${isAdmin() ? `
-            <div style="margin-top: 10px;">
+          ${(isAdmin() || (isAuthenticated() && review.userId === getUser()?._id?.toString())) ? `
+            <div style="margin-top: 10px; display: flex; gap: 8px;">
+              <button class="btn btn-secondary" onclick="editReview('${review._id}')">
+                ✏️ Edit Review
+              </button>
               <button class="btn btn-danger" onclick="deleteReview('${review._id}')">
                 🗑️ Delete Review
               </button>
@@ -1749,6 +1761,13 @@ async function removeFavorite(shopId) {
 // ============================================
 
 function createPhotoGallerySection(shopId, photos = [], mainPhotoIndex = 0) {
+  // Debug log
+  console.log('=== Photo Gallery Debug ===');
+  console.log('Photos:', photos);
+  console.log('Photos length:', photos.length);
+  console.log('Is admin:', isAdmin());
+  console.log('User:', getUser());
+
   return `
     <div class="photo-gallery-section">
       <div class="photo-gallery-header">
@@ -1769,32 +1788,32 @@ function createPhotoGallerySection(shopId, photos = [], mainPhotoIndex = 0) {
         </div>
       </div>
       <div class="photo-carousel" id="photoCarousel-${shopId}">
-        ${photos.length > 0 ? photos.map((photo, index) => `
-          <div class="photo-item ${index === mainPhotoIndex ? 'main-photo' : ''}">
-            <img src="${escapeHtml(photo.url)}" alt="${escapeHtml(photo.caption || 'Shop photo')}" 
-                 onerror="this.src='https://via.placeholder.com/150x120?text=Image+Not+Found'">
-            ${photo.caption ? `<div class="photo-item-overlay">${escapeHtml(photo.caption)}</div>` : ''}
-             <div class="photo-item-actions">
-               ${index === mainPhotoIndex ? `
-                 <span class="main-photo-badge">Main</span>
-               ` : isAdmin() ? `
-                 <button class="set-main-photo-btn" onclick="setMainPhoto('${shopId}', ${index})">
-                   Set as Main
-                 </button>
-               ` : ''}
-               ${isAdmin() ? `
-                 <button class="delete-photo-btn" onclick="deleteShopPhoto('${shopId}', ${index})">
-                   🗑️ Delete
-                 </button>
-               ` : ''}
-             </div>
-          </div>
-        `).join('') : `
-          <div class="empty-gallery">
-            <div class="empty-gallery-icon">📷</div>
-            <p>No photos yet. Be the first to add one!</p>
-          </div>
-        `}
+          ${photos.length > 0 ? photos.map((photo, index) => `
+            <div class="photo-item ${index === mainPhotoIndex ? 'main-photo' : ''}">
+              <img src="${escapeHtml(photo.url)}" alt="${escapeHtml(photo.caption || 'Shop photo')}" 
+                   onerror="this.src='https://via.placeholder.com/150x120?text=Image+Not+Found'">
+              ${photo.caption ? `<div class="photo-item-overlay">${escapeHtml(photo.caption)}</div>` : ''}
+               <div class="photo-item-actions">
+                 ${index === mainPhotoIndex ? `
+                   <span class="main-photo-badge">Main</span>
+                 ` : isAdmin() ? `
+                   <button class="set-main-photo-btn" onclick="setMainPhoto('${shopId}', ${index})">
+                     Set as Main
+                   </button>
+                 ` : ''}
+                 ${isAdmin() ? `
+                   <button class="delete-photo-btn" onclick="deleteShopPhoto('${shopId}', ${index})">
+                     🗑️ Delete
+                   </button>
+                 ` : ''}
+               </div>
+            </div>
+          `).join('') : isAdmin() ? `
+            <div class="empty-gallery">
+              <div class="empty-gallery-icon">📷</div>
+              <p>No photos yet. Be the first to add one!</p>
+            </div>
+          ` : ''}
       </div>
     </div>
   `;
@@ -2084,6 +2103,117 @@ async function deleteShop(shopId) {
       }
     }
   );
+}
+
+// Edit a review
+async function editReview(reviewId) {
+  // Get the review data
+  try {
+    const response = await fetch(`${API_BASE_URL}/reviews/single/${reviewId}`);
+    if (!response.ok) throw new Error('Failed to fetch review');
+    const review = await response.json();
+
+    // Check if user is authenticated and is the owner or admin
+    if (!isAuthenticated() || (!isAdmin() && review.userId !== getUser()._id)) {
+      alert('You can only edit your own reviews');
+      return;
+    }
+
+    // Open edit modal (we'll use the existing review modal but with some modifications)
+    const modal = document.getElementById('reviewModal');
+    modal.classList.add('show');
+
+    // Set the current review data
+    document.getElementById('currentShopId').value = review.shopId;
+    document.getElementById('rating').value = review.rating;
+    document.getElementById('comment').value = review.comment;
+
+    // Change the modal title
+    const modalTitle = modal.querySelector('h2');
+    modalTitle.textContent = 'Edit Review';
+
+    // Change the submit button text
+    const submitBtn = document.getElementById('reviewForm').querySelector('button[type="submit"]');
+    submitBtn.textContent = 'Update Review';
+
+    // Add a cancel button to reset the modal
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.className = 'btn btn-secondary';
+    cancelBtn.style.marginLeft = '10px';
+    cancelBtn.onclick = function () {
+      closeReviewModal();
+      // Reset the modal title and submit button text
+      modalTitle.textContent = 'Write a Review';
+      submitBtn.textContent = 'Submit Review';
+      cancelBtn.remove();
+    };
+    submitBtn.parentNode.appendChild(cancelBtn);
+
+    // Update the form's submit handler to call updateReview instead of submitReview
+    const form = document.getElementById('reviewForm');
+    form.removeEventListener('submit', submitReview);
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      updateReview(reviewId);
+    });
+
+  } catch (error) {
+    console.error('Error editing review:', error);
+    alert('Failed to edit review. Please try again.');
+  }
+}
+
+// Update a review
+async function updateReview(reviewId) {
+  const shopId = document.getElementById('currentShopId').value;
+  const rating = parseInt(document.getElementById('rating').value);
+  const comment = document.getElementById('comment').value.trim();
+  const files = document.getElementById('reviewImages').files;
+
+  if (!shopId || !rating || !comment) {
+    showError('Please fill in all fields.');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('rating', rating);
+  formData.append('comment', comment);
+
+  if (files.length > 0) {
+    Array.from(files).forEach(file => {
+      formData.append('images', file);
+    });
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/reviews/${reviewId}`, {
+      method: 'PUT',
+      headers: {
+        ...getAuthHeaders()
+      },
+      body: formData
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to update review');
+    }
+
+    closeReviewModal();
+    showError('✓ Review updated successfully!');
+
+    // Reload reviews to update the display
+    setTimeout(() => {
+      clearError();
+      loadAndDisplayReviews(currentShopId);
+      loadShops();
+    }, 1500);
+
+  } catch (err) {
+    console.error('Error updating review:', err);
+    showError(err.message || 'Failed to update review. Please try again.');
+  }
 }
 
 // Delete a review
