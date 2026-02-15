@@ -53,7 +53,7 @@ router.post('/', authMiddleware, reviewUpload.array('images', 5), reviewControll
 router.get('/single/:id', reviewController.getReviewById);
 
 // Edit a review (authenticated users can edit their own reviews)
-router.put('/:id', authMiddleware, reviewController.editReview);
+router.put('/:id', authMiddleware, reviewUpload.array('images', 5), reviewController.editReview);
 
 // Delete a review (authenticated users can delete their own reviews)
 router.delete('/:id', authMiddleware, reviewController.deleteReview);

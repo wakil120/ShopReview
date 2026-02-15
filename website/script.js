@@ -527,17 +527,14 @@ async function loadAndDisplayReviews(shopId) {
         `;
       }
 
-      // Debug log
-      console.log('=== Review Debug ===');
-      console.log('Review ID:', review._id);
-      console.log('Review userId:', review.userId);
-      console.log('Current user:', getUser());
-      console.log('User ID:', getUser()?._id);
-      console.log('User ID string:', getUser()?._id?.toString());
-      console.log('Match:', review.userId === getUser()?._id?.toString());
+
+
+
+      const isOwner = isAuthenticated() && String(review.userId) === String(getUser()?._id);
+      const canDelete = isAdmin() || isOwner;
 
       reviewsHTML += `
-        <div class="review-item" style="background: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 12px; border-left: 3px solid #667eea;">
+        <div id="review-${review._id}" class="review-item" style="background: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 12px; border-left: 3px solid #667eea;">
           <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
             <span style="font-weight: 600; color: #374151;">${escapeHtml(review.reviewer)}</span>
             <span style="color: #9ca3af; font-size: 0.85em;">${formattedDate}</span>
@@ -547,14 +544,18 @@ async function loadAndDisplayReviews(shopId) {
           </div>
           <p style="color: #4b5563; line-height: 1.4; font-size: 0.9em;">${escapeHtml(review.comment)}</p>
           ${imagesHTML}
-          ${(isAdmin() || (isAuthenticated() && review.userId === getUser()?._id?.toString())) ? `
+          ${(isOwner || canDelete) ? `
             <div style="margin-top: 10px; display: flex; gap: 8px;">
+              ${isOwner ? `
               <button class="btn btn-secondary" onclick="editReview('${review._id}')">
                 ✏️ Edit Review
               </button>
+              ` : ''}
+              ${canDelete ? `
               <button class="btn btn-danger" onclick="deleteReview('${review._id}')">
                 🗑️ Delete Review
               </button>
+              ` : ''}
             </div>
           ` : ''}
         </div>
@@ -750,6 +751,12 @@ function setupImagePreview() {
 
 async function submitReview(e) {
   e.preventDefault();
+
+  // If we are editing a review, route to updateReview instead
+  if (editingReviewId) {
+    updateReview(editingReviewId);
+    return;
+  }
 
   // Check if user is authenticated
   if (!isAuthenticated()) {
@@ -1761,12 +1768,10 @@ async function removeFavorite(shopId) {
 // ============================================
 
 function createPhotoGallerySection(shopId, photos = [], mainPhotoIndex = 0) {
-  // Debug log
-  console.log('=== Photo Gallery Debug ===');
-  console.log('Photos:', photos);
-  console.log('Photos length:', photos.length);
-  console.log('Is admin:', isAdmin());
-  console.log('User:', getUser());
+  // Hide the entire photo gallery section for non-admin users when there are no photos
+  if ((!photos || photos.length === 0) && !isAdmin()) {
+    return '';
+  }
 
   return `
     <div class="photo-gallery-section">
@@ -1808,12 +1813,12 @@ function createPhotoGallerySection(shopId, photos = [], mainPhotoIndex = 0) {
                  ` : ''}
                </div>
             </div>
-          `).join('') : isAdmin() ? `
+          `).join('') : `
             <div class="empty-gallery">
               <div class="empty-gallery-icon">📷</div>
               <p>No photos yet. Be the first to add one!</p>
             </div>
-          ` : ''}
+          `}
       </div>
     </div>
   `;
@@ -2105,6 +2110,9 @@ async function deleteShop(shopId) {
   );
 }
 
+// Track whether we are editing a review (holds the review ID or null)
+let editingReviewId = null;
+
 // Edit a review
 async function editReview(reviewId) {
   // Get the review data
@@ -2114,12 +2122,16 @@ async function editReview(reviewId) {
     const review = await response.json();
 
     // Check if user is authenticated and is the owner or admin
-    if (!isAuthenticated() || (!isAdmin() && review.userId !== getUser()._id)) {
+    const currentUser = getUser();
+    if (!isAuthenticated() || (!isAdmin() && String(review.userId) !== String(currentUser._id))) {
       alert('You can only edit your own reviews');
       return;
     }
 
-    // Open edit modal (we'll use the existing review modal but with some modifications)
+    // Set the editing flag so submitReview routes to updateReview
+    editingReviewId = reviewId;
+
+    // Open edit modal (reuse the existing review modal)
     const modal = document.getElementById('reviewModal');
     modal.classList.add('show');
 
@@ -2130,33 +2142,34 @@ async function editReview(reviewId) {
 
     // Change the modal title
     const modalTitle = modal.querySelector('h2');
-    modalTitle.textContent = 'Edit Review';
+    if (modalTitle) modalTitle.textContent = 'Edit Review';
 
     // Change the submit button text
     const submitBtn = document.getElementById('reviewForm').querySelector('button[type="submit"]');
-    submitBtn.textContent = 'Update Review';
+    if (submitBtn) submitBtn.textContent = 'Update Review';
+
+    // Remove any existing cancel buttons first
+    const existingCancel = document.getElementById('editCancelBtn');
+    if (existingCancel) existingCancel.remove();
 
     // Add a cancel button to reset the modal
     const cancelBtn = document.createElement('button');
     cancelBtn.textContent = 'Cancel';
+    cancelBtn.id = 'editCancelBtn';
+    cancelBtn.type = 'button';
     cancelBtn.className = 'btn btn-secondary';
     cancelBtn.style.marginLeft = '10px';
     cancelBtn.onclick = function () {
+      editingReviewId = null;
       closeReviewModal();
       // Reset the modal title and submit button text
-      modalTitle.textContent = 'Write a Review';
-      submitBtn.textContent = 'Submit Review';
+      if (modalTitle) modalTitle.textContent = 'Write a Review';
+      if (submitBtn) submitBtn.textContent = 'Submit Review';
       cancelBtn.remove();
     };
-    submitBtn.parentNode.appendChild(cancelBtn);
-
-    // Update the form's submit handler to call updateReview instead of submitReview
-    const form = document.getElementById('reviewForm');
-    form.removeEventListener('submit', submitReview);
-    form.addEventListener('submit', function (e) {
-      e.preventDefault();
-      updateReview(reviewId);
-    });
+    if (submitBtn && submitBtn.parentNode) {
+      submitBtn.parentNode.appendChild(cancelBtn);
+    }
 
   } catch (error) {
     console.error('Error editing review:', error);
@@ -2176,34 +2189,93 @@ async function updateReview(reviewId) {
     return;
   }
 
-  const formData = new FormData();
-  formData.append('rating', rating);
-  formData.append('comment', comment);
-
-  if (files.length > 0) {
-    Array.from(files).forEach(file => {
-      formData.append('images', file);
-    });
-  }
-
   try {
-    const response = await fetch(`${API_BASE_URL}/reviews/${reviewId}`, {
-      method: 'PUT',
-      headers: {
-        ...getAuthHeaders()
-      },
-      body: formData
-    });
+    let response;
+
+    if (files && files.length > 0) {
+      // Use FormData when there are files to upload
+      const formData = new FormData();
+      formData.append('rating', rating);
+      formData.append('comment', comment);
+      Array.from(files).forEach(file => {
+        formData.append('images', file);
+      });
+
+      response = await fetch(`${API_BASE_URL}/reviews/${reviewId}`, {
+        method: 'PUT',
+        headers: {
+          ...getAuthHeaders()
+        },
+        body: formData
+      });
+    } else {
+      // Use JSON when there are no files (ensures req.body is parsed correctly)
+      response = await fetch(`${API_BASE_URL}/reviews/${reviewId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
+        body: JSON.stringify({ rating, comment })
+      });
+    }
 
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || 'Failed to update review');
     }
 
+    // Reset the editing state
+    editingReviewId = null;
+
+    // Reset modal title/button
+    const modal = document.getElementById('reviewModal');
+    const modalTitle = modal.querySelector('h2');
+    const submitBtn = document.getElementById('reviewForm').querySelector('button[type="submit"]');
+    if (modalTitle) modalTitle.textContent = 'Write a Review';
+    if (submitBtn) submitBtn.textContent = 'Submit Review';
+    const cancelBtn = document.getElementById('editCancelBtn');
+    if (cancelBtn) cancelBtn.remove();
+
     closeReviewModal();
     showError('✓ Review updated successfully!');
 
-    // Reload reviews to update the display
+    // Dynamic Update: If no new files were uploaded, update the DOM directly
+    if (files.length === 0) {
+      const reviewCard = document.getElementById(`review-${reviewId}`);
+      if (reviewCard) {
+        // Update Comment
+        const commentP = reviewCard.querySelector('p[style*="color: #4b5563"]');
+        if (commentP) commentP.textContent = comment;
+
+        // Update Rating Stars (find the span with color: #f59e0b)
+        const ratingContainer = reviewCard.querySelector('div[style*="align-items: center"] span[style*="color: #f59e0b"]');
+        if (ratingContainer) {
+          // Re-generate stars string
+          let stars = '⭐'.repeat(rating);
+          stars += '☆'.repeat(5 - rating);
+          ratingContainer.innerHTML = `${rating} <span style="font-size: 1.2rem;">${stars}</span>`;
+        }
+
+        // Reset editing state
+        editingReviewId = null;
+
+        // Reset modal
+        const modal = document.getElementById('reviewModal');
+        const modalTitle = modal.querySelector('h2');
+        const submitBtn = document.getElementById('reviewForm').querySelector('button[type="submit"]');
+        if (modalTitle) modalTitle.textContent = 'Write a Review';
+        if (submitBtn) submitBtn.textContent = 'Submit Review';
+        const cancelBtn = document.getElementById('editCancelBtn');
+        if (cancelBtn) cancelBtn.remove();
+
+        // Clear error/success msg after delay
+        setTimeout(clearError, 2000);
+        return; // Skip full reload
+      }
+    }
+
+    // Reload if files changed or element not found
     setTimeout(() => {
       clearError();
       loadAndDisplayReviews(currentShopId);
