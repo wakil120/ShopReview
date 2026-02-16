@@ -85,31 +85,91 @@ function debounce(func, wait) {
 // ============================================
 // INITIALIZATION
 // ============================================
-document.addEventListener('DOMContentLoaded', () => {
-  // Check authentication status
-  updateAuthSection();
-
-  // Hide comparator section for non-logged-in users
-  const comparatorSection = document.getElementById('comparatorSection');
-  if (!isAuthenticated() && comparatorSection) {
-    comparatorSection.style.display = 'none';
+function showLoading() {
+  const loadingDiv = document.getElementById('loading');
+  if (loadingDiv) {
+    loadingDiv.style.display = 'block';
   }
+}
 
-  loadShops();
-  setupEventListeners();
-  setupAddShopButton();
-  loadFilters();
-  updateFavoritesCount();
-  setupImagePreview();
-  setupShopImagePreview();
+function hideLoading() {
+  const loadingDiv = document.getElementById('loading');
+  if (loadingDiv) {
+    loadingDiv.style.display = 'none';
+  }
+}
 
-  // Close details modal when clicking outside
-  const detailsModal = document.getElementById('detailsModal');
-  detailsModal.addEventListener('click', function (event) {
-    if (event.target === detailsModal) {
-      closeDetailsModal();
+function clearError() {
+  const errorDiv = document.getElementById('errorMsg');
+  if (errorDiv) {
+    errorDiv.textContent = '';
+    errorDiv.style.display = 'none';
+  }
+}
+
+function showError(message) {
+  const errorDiv = document.getElementById('errorMsg');
+  if (errorDiv) {
+    errorDiv.textContent = message;
+    errorDiv.style.display = 'block';
+  }
+}
+
+function setupShopImagePreview() {
+  const shopPhotosInput = document.getElementById('newShopPhotos');
+  const previewDiv = document.getElementById('shopImagePreview');
+
+  if (shopPhotosInput && previewDiv) {
+    shopPhotosInput.addEventListener('change', function (e) {
+      previewDiv.innerHTML = '';
+      const files = Array.from(e.target.files);
+
+      files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = function (event) {
+          const img = document.createElement('img');
+          img.src = event.target.result;
+          img.style.maxWidth = '100px';
+          img.style.maxHeight = '100px';
+          img.style.marginRight = '5px';
+          previewDiv.appendChild(img);
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Check which page we're on
+  const isLoginPage = window.location.pathname.includes('login.html');
+
+  if (!isLoginPage) {
+    // Check authentication status
+    updateAuthSection();
+
+    // Hide comparator section for non-logged-in users
+    const comparatorSection = document.getElementById('comparatorSection');
+    if (!isAuthenticated() && comparatorSection) {
+      comparatorSection.style.display = 'none';
     }
-  });
+
+    loadShops();
+    setupEventListeners();
+    setupAddShopButton();
+    loadFilters();
+    updateFavoritesCount();
+    setupImagePreview();
+    setupShopImagePreview();
+
+    // Close details modal when clicking outside
+    const detailsModal = document.getElementById('detailsModal');
+    detailsModal.addEventListener('click', function (event) {
+      if (event.target === detailsModal) {
+        closeDetailsModal();
+      }
+    });
+  }
 });
 
 function updateAuthSection() {
@@ -304,6 +364,17 @@ function createShopCard(shop) {
   checkAndUpdateFavoriteButton(shop._id);
 
   return card;
+}
+
+function escapeHtml(text) {
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return text.replace(/[&<>"]/g, function (m) { return map[m]; });
 }
 
 function generateStars(rating) {
@@ -712,13 +783,18 @@ function openReviewModal(shopId, shopName) {
   const modal = document.getElementById('reviewModal');
   modal.classList.add('show');
 
-  // Reset form
+  // Reset form and clear previews
   document.getElementById('reviewForm').reset();
+  const previewContainer = document.getElementById('imagePreview');
+  if (previewContainer) previewContainer.innerHTML = '';
 }
 
 function closeReviewModal() {
   document.getElementById('reviewModal').classList.remove('show');
   document.getElementById('reviewForm').reset();
+  // Clear preview on close as well to be safe
+  const previewContainer = document.getElementById('imagePreview');
+  if (previewContainer) previewContainer.innerHTML = '';
 }
 
 // Image preview functionality
@@ -737,9 +813,9 @@ function setupImagePreview() {
             const imgPreview = document.createElement('div');
             imgPreview.className = 'image-preview-item';
             imgPreview.innerHTML = `
-              <img src="${event.target.result}" alt="${file.name}" style="max-width: 100px; max-height: 100px; border-radius: 4px; object-fit: cover; margin-right: 8px; margin-bottom: 8px;">
-              <span class="image-preview-name">${file.name}</span>
-            `;
+               <img src="${event.target.result}" alt="${file.name}" style="max-width: 100px; max-height: 100px; border-radius: 4px; object-fit: cover; margin-right: 8px; margin-bottom: 8px;">
+               <span class="image-preview-name">${file.name}</span>
+             `;
             previewContainer.appendChild(imgPreview);
           };
           reader.readAsDataURL(file);
@@ -758,6 +834,8 @@ async function submitReview(e) {
     return;
   }
 
+  // ... (Rest of validation and FormData setup) ...
+
   // Check if user is authenticated
   if (!isAuthenticated()) {
     window.location.href = 'login.html';
@@ -768,7 +846,6 @@ async function submitReview(e) {
   const rating = parseInt(document.getElementById('rating').value);
   const comment = document.getElementById('comment').value.trim();
   const files = document.getElementById('reviewImages').files;
-  const user = getUser();
 
   if (!shopId || !rating || !comment) {
     showError('Please fill in all fields.');
@@ -780,7 +857,6 @@ async function submitReview(e) {
   formData.append('shopId', shopId);
   formData.append('rating', rating);
   formData.append('comment', comment);
-  // Reviewer name is taken from logged-in user, not form input
 
   // Append files to form data
   if (files.length > 0) {
@@ -792,24 +868,24 @@ async function submitReview(e) {
   try {
     const response = await fetch(`${API_BASE_URL}/reviews`, {
       method: 'POST',
-      headers: {
-        ...getAuthHeaders()
-      },
+      headers: { ...getAuthHeaders() },
       body: formData
     });
 
-    if (!response.ok) {
-      throw new Error('Failed to submit review');
-    }
+    if (!response.ok) throw new Error('Failed to submit review');
 
     closeReviewModal();
     showError('✓ Review submitted successfully!');
 
-    // Reload shops to update ratings
-    setTimeout(() => {
-      clearError();
-      loadShops();
-    }, 1500);
+    // Dynamic Update: Reload reviews and stats for the current shop
+    loadReviewStatistics(shopId);
+    loadAndDisplayReviews(shopId);
+
+    // Also reload main shop list to update average ratings there
+    loadShops();
+
+    setTimeout(() => clearError(), 3000);
+
   } catch (err) {
     console.error('Error submitting review:', err);
     showError('Failed to submit review. Please try again.');
@@ -823,44 +899,24 @@ function openAddShopModal() {
   document.getElementById('addShopModal').style.display = 'block';
   document.getElementById('addShopForm').reset();
   document.getElementById('addShopMsg').textContent = '';
+
+  // Clear photo preview
+  const previewContainer = document.getElementById('shopImagePreview');
+  if (previewContainer) previewContainer.innerHTML = '';
 }
 
 function closeAddShopModal() {
   document.getElementById('addShopModal').style.display = 'none';
-}
-
-// Shop image preview functionality
-function setupShopImagePreview() {
-  const fileInput = document.getElementById('newShopPhotos');
   const previewContainer = document.getElementById('shopImagePreview');
-
-  if (fileInput && previewContainer) {
-    fileInput.addEventListener('change', function (e) {
-      previewContainer.innerHTML = '';
-
-      if (e.target.files && e.target.files.length > 0) {
-        Array.from(e.target.files).forEach(file => {
-          const reader = new FileReader();
-          reader.onload = function (event) {
-            const imgPreview = document.createElement('div');
-            imgPreview.className = 'image-preview-item';
-            imgPreview.innerHTML = `
-              <img src="${event.target.result}" alt="${file.name}" style="max-width: 100px; max-height: 100px; border-radius: 4px; object-fit: cover; margin-right: 8px; margin-bottom: 8px;">
-              <span class="image-preview-name">${file.name}</span>
-            `;
-            previewContainer.appendChild(imgPreview);
-          };
-          reader.readAsDataURL(file);
-        });
-      }
-    });
-  }
+  if (previewContainer) previewContainer.innerHTML = '';
 }
+
+// ... (setupShopImagePreview remains same) ...
 
 async function submitAddShop(e) {
   e.preventDefault();
 
-  // Check if user is authenticated
+  // ... (validation) ...
   if (!isAuthenticated()) {
     window.location.href = 'login.html';
     return;
@@ -878,41 +934,33 @@ async function submitAddShop(e) {
     return;
   }
 
-  // Create FormData to handle file uploads
   const formData = new FormData();
   formData.append('name', name);
   formData.append('category', category);
   formData.append('location', location);
 
-  // Append files to form data
   if (files.length > 0) {
-    Array.from(files).forEach(file => {
-      formData.append('photos', file);
-    });
+    Array.from(files).forEach(file => formData.append('photos', file));
   }
 
   try {
     const resp = await fetch(`${API_BASE_URL}/shops`, {
       method: 'POST',
-      headers: {
-        ...getAuthHeaders()
-      },
+      headers: { ...getAuthHeaders() },
       body: formData
     });
 
     const data = await resp.json();
-
-    if (!resp.ok) {
-      throw new Error(data.message || 'Failed to add shop');
-    }
+    if (!resp.ok) throw new Error(data.message || 'Failed to add shop');
 
     msg.textContent = '✓ Shop added successfully!';
     msg.style.color = 'green';
 
-    // Close modal and reload shops after a delay
     setTimeout(() => {
       closeAddShopModal();
       loadShops();
+      // Dynamic Update: Reload filters to include new category/location
+      loadFilters();
     }, 1500);
 
   } catch (err) {
@@ -923,100 +971,91 @@ async function submitAddShop(e) {
 }
 
 // ============================================
-// UTILITY FUNCTIONS
-// ============================================
-
-/**
- * Show loading indicator
- */
-function showLoading() {
-  document.getElementById('loading').style.display = 'block';
-}
-
-/**
- * Hide loading indicator
- */
-function hideLoading() {
-  document.getElementById('loading').style.display = 'none';
-}
-
-/**
- * Show error message
- */
-function showError(message) {
-  const errorDiv = document.getElementById('errorMsg');
-  errorDiv.textContent = message;
-  errorDiv.classList.add('show');
-}
-
-/**
- * Clear error message
- */
-function clearError() {
-  const errorDiv = document.getElementById('errorMsg');
-  errorDiv.textContent = '';
-  errorDiv.classList.remove('show');
-}
-
-/**
- * Escape HTML special characters
- */
-function escapeHtml(text) {
-  if (!text) return '';
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-/**
- * Format date
- */
-function formatDate(dateString) {
-  const date = new Date(dateString);
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-
-  if (date.toDateString() === today.toDateString()) {
-    return 'Today';
-  } else if (date.toDateString() === yesterday.toDateString()) {
-    return 'Yesterday';
-  } else {
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  }
-}
-
-// ============================================
-// MODAL CLOSE ON OUTSIDE CLICK
+// DROPDOWN & MODAL CLOSING LOGIC
 // ============================================
 window.onclick = function (event) {
+  // Close dropdowns if clicking outside
+  if (!event.target.matches('.dropdown-btn') && !event.target.closest('.dropdown')) {
+    closeAllDropdowns();
+  }
+
+  // Handle modal closing
   const reviewModal = document.getElementById('reviewModal');
   const detailsModal = document.getElementById('detailsModal');
   const addShopModal = document.getElementById('addShopModal');
+  const comparatorModal = document.getElementById('comparatorModal');
 
-  if (event.target === reviewModal) {
-    closeReviewModal();
-  }
-  if (event.target === detailsModal) {
-    closeDetailsModal();
-  }
-  if (event.target === addShopModal) {
-    closeAddShopModal();
-  }
+  if (event.target === reviewModal) closeReviewModal();
+  if (event.target === detailsModal) closeDetailsModal();
+  if (event.target === addShopModal) closeAddShopModal();
+  if (event.target === comparatorModal) closeComparatorModal();
 };
 
 
 // ============================================
-// Filtering Categories & Locations - COMPLETE FIX
+// Filtering Categories & Locations - DROPDOWN VERSION
 // ============================================
 
 // 🔹 Global filter state
 let selectedCategory = "";
 let selectedLocation = "";
+
+// ============================================
+// Toggle Dropdown Visibility
+// ============================================
+function toggleDropdown(wrapperId) {
+  const content = document.querySelector(`#${wrapperId} .dropdown-content`);
+  const wasShown = content.classList.contains('show');
+
+  // Close all dropdowns first
+  closeAllDropdowns();
+
+  // Toggle the clicked one
+  if (!wasShown) {
+    content.classList.add('show');
+  }
+}
+
+function closeAllDropdowns() {
+  document.querySelectorAll('.dropdown-content').forEach(d => d.classList.remove('show'));
+}
+
+// Close dropdowns when clicking outside
+window.onclick = function (event) {
+  if (!event.target.matches('.dropdown-btn') && !event.target.matches('.dropdown-btn *') &&
+    !event.target.matches('.dropdown-search')) {
+    closeAllDropdowns();
+  }
+  // Handle modal closing too
+  const reviewModal = document.getElementById('reviewModal');
+  const detailsModal = document.getElementById('detailsModal');
+  const addShopModal = document.getElementById('addShopModal');
+  const comparatorModal = document.getElementById('comparatorModal');
+
+  if (event.target === reviewModal) closeReviewModal();
+  if (event.target === detailsModal) closeDetailsModal();
+  if (event.target === addShopModal) closeAddShopModal();
+  if (event.target === comparatorModal) closeComparatorModal();
+};
+
+// ============================================
+// Filter Dropdown Options (Search inside dropdown)
+// ============================================
+function filterDropdownFor(type, searchText) {
+  const listId = type === 'category' ? 'categoryFilters' : 'locationFilters';
+  const list = document.getElementById(listId);
+  const items = list.getElementsByClassName('dropdown-item');
+  const filter = searchText.toUpperCase();
+
+  for (let i = 0; i < items.length; i++) {
+    const txtValue = items[i].textContent || items[i].innerText;
+    if (txtValue.toUpperCase().indexOf(filter) > -1) {
+      items[i].style.display = "";
+    } else {
+      items[i].style.display = "none";
+    }
+  }
+}
 
 // ============================================
 // Fetch categories & locations
@@ -1028,27 +1067,16 @@ async function loadFilters() {
 
     // Get unique categories (normalized to lowercase)
     const categories = [
-      ...new Set(
-        shops.map(s => s.category.trim().toLowerCase())
-      )
-    ];
+      ...new Set(shops.map(s => s.category.trim().toLowerCase()))
+    ].sort();
 
     // Get unique locations (normalized to lowercase)
     const locations = [
-      ...new Set(
-        shops.map(s => s.location.trim().toLowerCase())
-      )
-    ];
+      ...new Set(shops.map(s => s.location.trim().toLowerCase()))
+    ].sort();
 
-    renderFilters('categoryFilters', categories, (category) => {
-      selectedCategory = category;
-      fetchFilteredShops();
-    });
-
-    renderFilters('locationFilters', locations, (location) => {
-      selectedLocation = location;
-      fetchFilteredShops();
-    });
+    renderFilters('categoryFilters', categories, 'category');
+    renderFilters('locationFilters', locations, 'location');
   } catch (err) {
     console.error('Failed to load filters', err);
   }
@@ -1062,30 +1090,18 @@ async function fetchFilteredShops() {
   clearError();
 
   let url = `${API_BASE_URL}/shops`;
-
-  // Build query with BOTH filters
   const params = new URLSearchParams();
 
-  if (selectedCategory) {
-    params.append('category', selectedCategory);
-  }
+  if (selectedCategory && selectedCategory.trim() !== "") params.append('category', selectedCategory);
+  if (selectedLocation && selectedLocation.trim() !== "") params.append('location', selectedLocation);
 
-  if (selectedLocation) {
-    params.append('location', selectedLocation);
-  }
-
-  // Always add the query string if we have any filters
-  if (params.toString()) {
-    url += `?${params.toString()}`;
-  }
+  if (params.toString()) url += `?${params.toString()}`;
 
   try {
     const resp = await fetch(url);
     if (!resp.ok) throw new Error("Failed to fetch shops");
-
     const shops = await resp.json();
     displayShops(shops);
-
   } catch (err) {
     console.error(err);
     showError('Failed to load filtered shops');
@@ -1095,84 +1111,98 @@ async function fetchFilteredShops() {
 }
 
 // ============================================
-// Render filter buttons with proper reset
+// Render Dropdown Items
 // ============================================
-function renderFilters(containerId, items, onClickHandler) {
+function renderFilters(containerId, items, type) {
   const container = document.getElementById(containerId);
   container.innerHTML = '';
 
-  // 🔹 ALL button
-  const allBtn = document.createElement('button');
-  allBtn.textContent = 'All';
-  allBtn.className = 'filter-btn active'; // Default active
+  const isCategory = type === 'category';
+  const labelPrefix = isCategory ? '📂 Categories' : '📍 Locations';
+  const btnTextId = isCategory ? 'categoryBtnText' : 'locationBtnText';
 
-  allBtn.onclick = () => {
-    // Remove active class from all buttons
-    [...container.children].forEach(btn => btn.classList.remove('active'));
-    // Add active to this button
-    allBtn.classList.add('active');
+  // 🔹 ALL Option
+  const allItem = document.createElement('div');
+  allItem.textContent = 'All';
+  allItem.className = 'dropdown-item active';
 
-    // Clear the appropriate filter
-    if (containerId === 'categoryFilters') {
-      selectedCategory = "";
-    } else if (containerId === 'locationFilters') {
-      selectedLocation = "";
-    }
+  allItem.onclick = () => {
+    // Reset state
+    if (isCategory) selectedCategory = "";
+    else selectedLocation = "";
 
-    // Fetch with updated filters
+    // Update UI
+    updateDropdownUI(containerId, allItem);
+    document.getElementById(btnTextId).textContent = labelPrefix;
+
+    closeAllDropdowns();
     fetchFilteredShops();
   };
+  container.appendChild(allItem);
 
-  container.appendChild(allBtn);
-
-  // 🔹 Category/Location buttons
+  // 🔹 Individual Items
   items.forEach(item => {
-    const btn = document.createElement('button');
-    // Display with first letter capitalized
-    btn.textContent = item.charAt(0).toUpperCase() + item.slice(1);
-    btn.className = 'filter-btn';
+    const div = document.createElement('div');
+    div.textContent = item.charAt(0).toUpperCase() + item.slice(1);
+    div.className = 'dropdown-item';
 
-    btn.onclick = () => {
-      // Remove active class from all buttons in this container
-      [...container.children].forEach(btn => btn.classList.remove('active'));
-      // Add active to clicked button
-      btn.classList.add('active');
+    div.onclick = () => {
+      // Update state
+      if (isCategory) selectedCategory = item;
+      else selectedLocation = item;
 
-      // Call the handler with the filter value
-      onClickHandler(item);
+      // Update UI
+      updateDropdownUI(containerId, div);
+      document.getElementById(btnTextId).textContent = `${isCategory ? '📂' : '📍'} ${div.textContent}`;
+
+      closeAllDropdowns();
+      fetchFilteredShops();
     };
-
-    container.appendChild(btn);
+    container.appendChild(div);
   });
 }
+
+function updateDropdownUI(containerId, activeItem) {
+  const container = document.getElementById(containerId);
+  // Remove active class from all
+  [...container.children].forEach(child => child.classList.remove('active'));
+  // Add to clicked
+  activeItem.classList.add('active');
+}
+
 // ============================================
-// RESET FILTERS BUTTON (Styled better)
+// RESET FILTERS BUTTON
 // ============================================
 function addResetFiltersButton() {
   const searchBox = document.querySelector('.search-box');
+  // Avoid duplicates
+  if (document.querySelector('.reset-btn')) return;
 
   const resetBtn = document.createElement('button');
   resetBtn.textContent = 'Reset Filters';
   resetBtn.className = 'reset-btn';
 
   resetBtn.onclick = () => {
-    // Reset all filters
     selectedCategory = "";
     selectedLocation = "";
 
-    // Reset UI buttons
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-      btn.classList.remove('active');
+    // Reset Dropdown UI
+    document.getElementById('categoryBtnText').textContent = '📂 Categories';
+    document.getElementById('locationBtnText').textContent = '📍 Locations';
+
+    // Reset active states in dropdowns
+    document.querySelectorAll('.dropdown-list').forEach(list => {
+      [...list.children].forEach(child => child.classList.remove('active'));
+      if (list.firstChild) list.firstChild.classList.add('active');
     });
 
-    // Activate "All" buttons
-    document.querySelectorAll('#categoryFilters .filter-btn:first-child, #locationFilters .filter-btn:first-child')
-      .forEach(btn => btn.classList.add('active'));
-
-    // Clear search input
+    // Clear search fields
     document.getElementById('searchInput').value = '';
+    document.querySelectorAll('.dropdown-search').forEach(input => input.value = '');
 
-    // Reload all shops
+    // Reset lists visibility (in case search filtered them)
+    document.querySelectorAll('.dropdown-item').forEach(item => item.style.display = '');
+
     loadShops();
   };
 
@@ -1213,15 +1243,19 @@ function closeComparatorModal() {
 
 async function loadShopSuggestions() {
   try {
+    // Check if the datalist elements exist
+    const datalist1 = document.getElementById('shopSuggestions1');
+    const datalist2 = document.getElementById('shopSuggestions2');
+
+    if (!datalist1 || !datalist2) {
+      return; // Skip if elements not found (e.g., on login page)
+    }
+
     const response = await fetch(`${API_BASE_URL}/shops`);
     if (!response.ok) return;
 
     const shops = await response.json();
     const shopNames = shops.map(shop => shop.name);
-
-    // Add to both datalists (clear existing options first to avoid duplicates)
-    const datalist1 = document.getElementById('shopSuggestions1');
-    const datalist2 = document.getElementById('shopSuggestions2');
 
     // Clear existing options
     datalist1.innerHTML = '';
@@ -1385,15 +1419,19 @@ function closeComparatorModal() {
 
 async function loadShopSuggestions() {
   try {
+    // Check if the datalist elements exist
+    const datalist1 = document.getElementById('shopSuggestions1');
+    const datalist2 = document.getElementById('shopSuggestions2');
+
+    if (!datalist1 || !datalist2) {
+      return; // Skip if elements not found (e.g., on login page)
+    }
+
     const response = await fetch(`${API_BASE_URL}/shops`);
     if (!response.ok) return;
 
     const shops = await response.json();
     const shopNames = shops.map(shop => shop.name);
-
-    // Add to both datalists (clear existing options first to avoid duplicates)
-    const datalist1 = document.getElementById('shopSuggestions1');
-    const datalist2 = document.getElementById('shopSuggestions2');
 
     // Clear existing options
     datalist1.innerHTML = '';
@@ -1527,12 +1565,17 @@ window.onclick = function (event) {
 // ============================================
 
 function initializeAll() {
-  loadShops();
-  setupEventListeners();
-  setupAddShopButton();
-  loadFilters();
-  addResetFiltersButton();
-  setupComparator();
+  // Check which page we're on
+  const isLoginPage = window.location.pathname.includes('login.html');
+
+  if (!isLoginPage) {
+    loadShops();
+    setupEventListeners();
+    setupAddShopButton();
+    loadFilters();
+    addResetFiltersButton();
+    setupComparator();
+  }
 }
 
 function setupComparator() {
@@ -2239,6 +2282,15 @@ async function updateReview(reviewId) {
 
     closeReviewModal();
     showError('✓ Review updated successfully!');
+
+    // Dynamic Update: Reload reviews and stats
+    loadReviewStatistics(shopId);
+    loadAndDisplayReviews(shopId);
+
+    // Also reload main shop list
+    loadShops();
+
+    setTimeout(() => clearError(), 3000);
 
     // Dynamic Update: If no new files were uploaded, update the DOM directly
     if (files.length === 0) {

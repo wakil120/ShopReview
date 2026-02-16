@@ -12,8 +12,10 @@
   <div class="container">
     <!-- Header -->
     <header class="header">
-      <h1>🏪 ShopReview</h1>
-      <p class="tagline">Discover and review the best shops in your area</p>
+      <div class="header-branding">
+        <h1>🏪 ShopReview</h1>
+        <p class="tagline">Discover and review the best shops in your area</p>
+      </div>
       <div class="header-actions">
         <div id="authSection">
           <button id="loginBtn" class="login-header-btn" onclick="window.location.href='login.html'">
@@ -35,14 +37,32 @@
 
     <!-- Filters Section -->
     <section class="filters-section">
-      <div class="filter-group">
-        <h3>📂 Categories</h3>
-        <div id="categoryFilters" class="filter-list"></div>
+      <!-- Category Dropdown -->
+      <div class="dropdown" id="categoryDropdownWrapper">
+        <button class="dropdown-btn" onclick="toggleDropdown('categoryDropdownWrapper')">
+          <span id="categoryBtnText">📂 Categories</span>
+        </button>
+        <div class="dropdown-content">
+          <div class="dropdown-search-container">
+            <input type="text" class="dropdown-search" placeholder="Search categories..."
+              onclick="event.stopPropagation()" oninput="filterDropdownFor('category', this.value)">
+          </div>
+          <div id="categoryFilters" class="dropdown-list"></div>
+        </div>
       </div>
 
-      <div class="filter-group">
-        <h3>📍 Locations</h3>
-        <div id="locationFilters" class="filter-list"></div>
+      <!-- Location Dropdown -->
+      <div class="dropdown" id="locationDropdownWrapper">
+        <button class="dropdown-btn" onclick="toggleDropdown('locationDropdownWrapper')">
+          <span id="locationBtnText">📍 Locations</span>
+        </button>
+        <div class="dropdown-content">
+          <div class="dropdown-search-container">
+            <input type="text" class="dropdown-search" placeholder="Search locations..."
+              onclick="event.stopPropagation()" oninput="filterDropdownFor('location', this.value)">
+          </div>
+          <div id="locationFilters" class="dropdown-list"></div>
+        </div>
       </div>
     </section>
 
